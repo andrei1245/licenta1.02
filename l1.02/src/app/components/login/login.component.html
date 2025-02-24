@@ -1,0 +1,14 @@
+<form [formGroup]="form" (submitt)="submit()">
+    
+    <h1 class="h3 mb-3 fw-normal">Please sign in</h1>
+
+    <input formControlName="email" tpye="email" class="form=control"
+    placeholder="email" required>
+
+    <input formControlName="password" tpye="password" class="form=control"
+    placeholder="password" required>
+
+    <button class="w-100 btn btn-lg btn-primary" (click)="submit()" type="submit">
+        Sign in
+    </button>
+</form>
