@@ -8,18 +8,20 @@ require("dotenv").config();
 
 const app = express();
 
-// Middleware setup (ORDINEA CONTEAZĂ)
+//ORDINEA CONTEAZa prostule
 app.use(cors({
   credentials: true,
-  origin: 'http://localhost:4200',
-  methods: "GET,POST,PUT,DELETE,OPTIONS",
-  allowedHeaders: "Content-Type,Authorization"
+  origin: "http://localhost:4200",
+  credentials: true
 }));
+
+
 app.use(cookieParser());
 app.use(express.json());
-
-// Rute
 app.use('/api', routes);
+const path = require('path');
+// Servește fișierele din directorul "uploads"
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 console.log("Loaded routes.js!");
 console.log("Registered routes:");

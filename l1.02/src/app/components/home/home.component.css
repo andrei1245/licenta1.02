@@ -1,0 +1,66 @@
+/* Resetează marginile și padding-ul la nivel global */
+body, html {
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Suprascrie stilurile implicite ale containerului Bootstrap */
+
+  
+  /* Stil pentru containerul tabelului */
+  .table-container {
+    width: 100%;
+    margin: 20px 0;
+    padding: 0;
+    overflow-x: auto;
+  }
+  
+  /* Stil pentru tabelul propriu-zis */
+  .file-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Stil pentru celulele din tabel */
+  .file-table th,
+  .file-table td {
+    padding: 15px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  /* Stil pentru header-ul tabelului */
+  .file-table th {
+    background-color: #007bff;
+    color: white;
+    font-size: 1.1em;
+    position: sticky;
+    left: 0;
+  }
+  
+  /* Asigură-te că rândurile nu au margin sau padding suplimentar */
+  .file-table tr {
+    background-color: #ffffff;
+    width: 100%;
+  }
+  
+  /* Elimină orice padding de la nivelul componentei */
+  :host {
+    display: block;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .custom-container {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ptform{
+    width: 100%;
+  
+  }

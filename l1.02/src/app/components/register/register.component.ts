@@ -63,5 +63,4 @@ export class RegisterComponent implements OnInit {
     console.log("Email control status:", this.form.controls['email'].status);
     console.log("Password control status:", this.form.controls['password'].status);
   }
-
 }

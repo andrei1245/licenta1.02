@@ -2,11 +2,75 @@ const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const multer = require('multer');
 const router = Router();
-
+const MP3 = require('../models/mp3');
 
 require("dotenv").config();
 const SECRET_KEY1 = process.env.SECRET_KEY; // Adaugă această linie!
+
+const storage = multer.memoryStorage(); // Use memory storage instead of disk storage
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'audio/mpeg') {
+      cb(null, true);
+    } else {
+      cb(new Error('Doar fișiere MP3 sunt permise!'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // Limită 10MB
+  }
+});
+
+router.post('/upload', upload.single('mp3'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send({ message: 'No file uploaded or invalid file type' });
+  }
+
+  const mp3 = new MP3({
+    filename: req.file.originalname,
+    data: req.file.buffer,
+    contentType: req.file.mimetype
+  });
+
+  try {
+    await mp3.save();
+    res.status(200).send({ 
+      message: 'File uploaded successfully', 
+      file: mp3._id
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: 'Error saving file to database' });
+  }
+});
+
+router.get('/mp3/:id', async (req, res) => {
+  try {
+    const mp3 = await MP3.findById(req.params.id);
+    if (!mp3) {
+      return res.status(404).send({ message: 'File not found' });
+    }
+    res.set('Content-Type', mp3.contentType);
+    res.send(mp3.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: 'Error retrieving file from database' });
+  }
+});
+
+router.get('/mp3s', async (req, res) => {
+  try {
+    const files = await MP3.find().select('filename _id uploadDate'); // Selectează doar câmpurile necesare
+    res.status(200).send(files);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: 'Error retrieving files list' });
+  }
+});
 
 router.post('/register', async (req, res) => {
   try {
