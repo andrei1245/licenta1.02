@@ -10,13 +10,15 @@ import { LoginComponent } from './components/login/login.component';
 import {FormsModule,ReactiveFormsModule} from '@angular/forms';
 import {HttpClientModule} from '@angular/common/http';
 
+
 @NgModule({
   declarations: [
     AppComponent,
     HomeComponent,
     RegisterComponent,
     NavComponent,
-    LoginComponent
+    LoginComponent,
+  
   ],
   imports: [
     BrowserModule,

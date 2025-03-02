@@ -1,0 +1,45 @@
+/* Stiluri pentru containerul formularului */
+form {
+    max-width: 400px;
+    margin: 50px auto; /* centerază formularul pe ecran */
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Stiluri pentru titlu */
+  form h1 {
+    font-size: 1.75rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #333;
+  }
+  
+  /* Stiluri pentru câmpurile de input */
+  form input.form-control {
+    margin-bottom: 1rem;
+    height: 45px;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  
+  /* Stiluri pentru buton */
+  form button.btnn {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1rem;
+    background-color: #007bff; /* culoarea primară Bootstrap, dar o poți ajusta */
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  form button.btnn:hover {
+    background-color: #0056b3;
+  }

@@ -1,5 +1,5 @@
-
 <h2>{{ message }}</h2>
+
 <form (submit)="uploadFile($event)" class="ptform">
   <input type="file" (change)="onFileSelected($event)" accept=".mp3" />
   <button type="submit">Upload MP3</button>
@@ -12,6 +12,7 @@
         <th>File Name</th>
         <th>Upload Date</th>
         <th>Play</th>
+        <th>Actions</th> <!-- Coloana nouă pentru butoane -->
       </tr>
     </thead>
     <tbody>
@@ -24,8 +25,10 @@
             Your browser does not support the audio element.
           </audio>
         </td>
+        <td>
+          <button class="edit-btn" (click)="editFile(file._id)">Edit</button>
+        </td>
       </tr>
     </tbody>
   </table>
 </div>
-

@@ -10,9 +10,8 @@ const app = express();
 
 //ORDINEA CONTEAZa prostule
 app.use(cors({
-  credentials: true,
   origin: "http://localhost:4200",
-  credentials: true
+  credentials: true,
 }));
 
 
@@ -38,16 +37,20 @@ app._router.stack.forEach((middleware) => {
 });
 
 // Conectare la baza de date
-mongoose.connect(process.env.MONGO_URL)
-  .then(() => {
-    console.log("Conectat la baza de date");
-    app.listen(5000, () => {
-      console.log("Aplicația rulează pe portul 5000");
-    });
-  })
-  .catch(err => {
-    console.error("Eroare la conectarea la baza de date:", err);
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => {
+  console.log("✅ Conectat cu succes la baza de date");
+  app.listen(5000, () => {
+    console.log("🚀 Serverul rulează pe portul 5000");
   });
+})
+.catch(err => {
+  console.error("❌ Eroare critică la conectarea la MongoDB:", err);
+  process.exit(1); // Ieșire din proces cu eroare
+});
 
 // Ruta principală
 app.get("/", (req, res) => {

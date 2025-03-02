@@ -21,6 +21,10 @@ export class HomeComponent implements OnInit {
     this.loadUserData();
     this.loadMP3Files(); // Încărcăm lista de fișiere la inițializare
   }
+   
+  editFile(fileId: string): void {
+    this.router.navigate(['/edit-mp3', fileId]); // Navigare către pagina de edit
+  }
 
   private loadUserData(): void {
     this.http.get('http://localhost:5000/api/user', { withCredentials: true })
@@ -39,15 +43,19 @@ export class HomeComponent implements OnInit {
 
   private loadMP3Files(): void {
     this.http.get('http://localhost:5000/api/mp3s', { withCredentials: true })
-      .subscribe({
-        next: (files: any) => {
-          this.mp3List = files;
-        },
-        error: (err) => {
-          console.error("Error loading MP3 files:", err);
+    .subscribe({
+      next: (files: any) => {
+        this.mp3List = files;
+      },
+      error: (err) => {
+        console.error("Error loading MP3 files:", err);
+        if(err.status === 401) {
+          this.router.navigate(['/login']);
+        } else {
           alert('Error loading files list');
         }
-      });
+      }
+    });
   }
 
   onFileSelected(event: any): void {

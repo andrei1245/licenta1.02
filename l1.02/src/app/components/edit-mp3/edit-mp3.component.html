@@ -1,0 +1,45 @@
+<div class="edit-container">
+    <h2>Editare fișier</h2>
+  
+    <!-- Loading state -->
+    <div *ngIf="loading" class="loading">
+      <p>Se încarcă detaliile...</p>
+    </div>
+  
+    <!-- Error state -->
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+  
+    <!-- Success state -->
+    <div *ngIf="file && !loading">
+      <div class="form-group">
+        <label>Nume fișier:</label>
+        <input 
+          type="text" 
+          [(ngModel)]="file.filename" 
+          [disabled]="isUpdating"
+          class="filename-input"
+        >
+      </div>
+  
+      <div class="button-group">
+        <button 
+          class="save-btn"
+          (click)="updateFile()" 
+          [disabled]="isUpdating || file.filename === originalFilename"
+        >
+          <span *ngIf="!isUpdating">Salvează modificări</span>
+          <span *ngIf="isUpdating">Se salvează...</span>
+        </button>
+        
+        <button 
+          class="cancel-btn"
+          (click)="navigateToHome()" 
+          [disabled]="isUpdating"
+        >
+          Anulează
+        </button>
+      </div>
+    </div>
+  </div>

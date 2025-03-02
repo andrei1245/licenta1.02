@@ -7,6 +7,11 @@ const mp3Schema = new mongoose.Schema({
   uploadDate: {
     type: Date,
     default: Date.now
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 });
 

@@ -5,6 +5,7 @@ const User = require('../models/user');
 const multer = require('multer');
 const router = Router();
 const MP3 = require('../models/mp3');
+const mongoose = require('mongoose');
 
 require("dotenv").config();
 const SECRET_KEY1 = process.env.SECRET_KEY; // Adaugă această linie!
@@ -25,7 +26,22 @@ const upload = multer({
   }
 });
 
-router.post('/upload', upload.single('mp3'), async (req, res) => {
+const authMiddleware = async (req, res, next) => {
+  try {
+    const token = req.cookies.jwt;
+    if (!token) return res.status(401).send('Neautorizat');
+
+    const decoded = jwt.verify(token, SECRET_KEY1);
+    req.user = await User.findById(decoded._id);
+    next();
+  } catch (err) {
+    res.status(401).send('Neautorizat');
+  }
+};
+
+
+
+router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) => {
   if (!req.file) {
     return res.status(400).send({ message: 'No file uploaded or invalid file type' });
   }
@@ -33,7 +49,8 @@ router.post('/upload', upload.single('mp3'), async (req, res) => {
   const mp3 = new MP3({
     filename: req.file.originalname,
     data: req.file.buffer,
-    contentType: req.file.mimetype
+    contentType: req.file.mimetype,
+    user: req.user._id // Adăugăm ID-ul utilizatorului
   });
 
   try {
@@ -47,6 +64,8 @@ router.post('/upload', upload.single('mp3'), async (req, res) => {
     res.status(500).send({ message: 'Error saving file to database' });
   }
 });
+
+
 
 router.get('/mp3/:id', async (req, res) => {
   try {
@@ -62,13 +81,100 @@ router.get('/mp3/:id', async (req, res) => {
   }
 });
 
-router.get('/mp3s', async (req, res) => {
+router.get('/mp3/:id/details', authMiddleware, async (req, res) => {
   try {
-    const files = await MP3.find().select('filename _id uploadDate'); // Selectează doar câmpurile necesare
+    const mp3 = await MP3.findById(req.params.id)
+      .select('_id filename uploadDate user')
+      .lean();
+
+    if (!mp3) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Fișier negăsit" 
+      });
+    }
+
+    // Verifică drepturi de acces
+    if (mp3.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: "Acces interzis"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        _id: mp3._id,
+        filename: mp3.filename,
+        uploadDate: mp3.uploadDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Eroare detalii fișier:', error);
+    res.status(500).json({
+      success: false,
+      error: "Eroare server",
+      details: error.message
+    });
+  }
+});
+
+router.get('/mp3s', authMiddleware, async (req, res) => {
+  try {
+    const files = await MP3.find({ user: req.user._id })
+                         .select('filename _id uploadDate');
     res.status(200).send(files);
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: 'Error retrieving files list' });
+  }
+});
+
+router.put('/edit-mp3/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { filename } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "ID invalid",
+        code: "INVALID_ID"
+      });
+    }
+
+
+    if (!filename) {
+      return res.status(400).json({ message: 'Filename is required' });
+    }
+
+    const mp3 = await MP3.findById(id);
+    
+    if (!mp3) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    if (mp3.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    mp3.filename = filename;
+    await mp3.save();
+
+    res.status(200).json({
+      message: 'File updated successfully',
+      file: {
+        _id: mp3._id,
+        filename: mp3.filename,
+        uploadDate: mp3.uploadDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Edit error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
