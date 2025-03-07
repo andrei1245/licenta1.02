@@ -19,8 +19,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use('/api', routes);
 const path = require('path');
-// Servește fișierele din directorul "uploads"
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 console.log("Loaded routes.js!");
 console.log("Registered routes:");
@@ -36,7 +35,7 @@ app._router.stack.forEach((middleware) => {
   }
 });
 
-// Conectare la baza de date
+
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -49,10 +48,10 @@ mongoose.connect(process.env.MONGO_URL, {
 })
 .catch(err => {
   console.error("❌ Eroare critică la conectarea la MongoDB:", err);
-  process.exit(1); // Ieșire din proces cu eroare
+  process.exit(1); 
 });
 
-// Ruta principală
+
 app.get("/", (req, res) => {
   res.send("Serverul funcționează!");
 });

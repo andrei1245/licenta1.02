@@ -37,20 +37,19 @@ export class RegisterComponent implements OnInit {
     let user = this.form.value;
     console.log("Updated form values:", user);
   
-    // Verificare câmpuri goale
+    
     if (!user.email || !user.password) {
       Swal.fire("Error", "Please enter all the fields", "error");
       return;
     }
   
-    // Validare email (Regex + Validatorul Angular)
     const validEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!validEmailRegex.test(user.email) || this.form.controls['email'].invalid) {
       Swal.fire("Error", "Please enter a valid email", "error");
       return;
     }
   
-    // Trimite request-ul dacă validările sunt OK
+    
     this.http.post("http://localhost:5000/api/register", user, { withCredentials: true })
       .subscribe(
         () => this.router.navigate(['/']),

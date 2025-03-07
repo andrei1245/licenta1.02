@@ -8,9 +8,9 @@ const MP3 = require('../models/mp3');
 const mongoose = require('mongoose');
 
 require("dotenv").config();
-const SECRET_KEY1 = process.env.SECRET_KEY; // Adaugă această linie!
+const SECRET_KEY1 = process.env.SECRET_KEY; 
 
-const storage = multer.memoryStorage(); // Use memory storage instead of disk storage
+const storage = multer.memoryStorage(); 
 
 const upload = multer({
   storage: storage,
@@ -22,7 +22,7 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024 // Limită 10MB
+    fileSize: 10 * 1024 * 1024 // Limita 10MB
   }
 });
 
@@ -50,7 +50,7 @@ router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) =>
     filename: req.file.originalname,
     data: req.file.buffer,
     contentType: req.file.mimetype,
-    user: req.user._id // Adăugăm ID-ul utilizatorului
+    user: req.user._id 
   });
 
   try {
@@ -65,6 +65,25 @@ router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) =>
   }
 });
 
+
+router.delete('/delete-mp3/:id', (req, res) => {
+  const fileId = req.params.id;
+  console.log('[DEBUG] Deleting file ID:', fileId);
+
+  MP3.findByIdAndDelete(fileId)
+    .then(file => {
+      if (!file) {
+        console.log('[DEBUG] File not found');
+        return res.status(404).json({ message: 'File not found' });
+      }
+      console.log('[DEBUG] Deleted file:', file);
+      res.status(200).json({ message: 'File deleted successfully' });
+    })
+    .catch(err => {
+      console.error('[ERROR] Delete error:', err);
+      res.status(500).json({ message: 'Server error' });
+    });
+});
 
 
 router.get('/mp3/:id', async (req, res) => {
@@ -94,7 +113,7 @@ router.get('/mp3/:id/details', authMiddleware, async (req, res) => {
       });
     }
 
-    // Verifică drepturi de acces
+    
     if (mp3.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -246,7 +265,7 @@ router.post('/login', async (req, res) => {
 
 router.get('/user', async (req, res) => {
   try {
-    console.log("Cookies received:", req.cookies); // Verifică ce cookie-uri primește serverul
+    console.log("Cookies received:", req.cookies); 
 
     const cookie = req.cookies.jwt;
 
@@ -254,7 +273,7 @@ router.get('/user', async (req, res) => {
       return res.status(401).send({ message: "unauthenticated - no cookie" });
     }
 
-    const claims = jwt.verify(cookie, SECRET_KEY1); // Corect
+    const claims = jwt.verify(cookie, SECRET_KEY1); 
 
     if (!claims) {
       return res.status(401).send({ message: "unauthenticated - invalid JWT" });
@@ -266,7 +285,7 @@ router.get('/user', async (req, res) => {
       return res.status(401).send({ message: "unauthenticated - user not found" });
     }
 
-    const { password, ...data } = user.toJSON(); // Corect
+    const { password, ...data } = user.toJSON(); 
     res.send(data);
 
   } catch (err) {
@@ -277,7 +296,7 @@ router.get('/user', async (req, res) => {
 
 
 router.post('/logout', async (req, res) => {
-  console.log("Received POST request to /logout"); // Debug
+  console.log("Received POST request to /logout"); 
   res.cookie("jwt", "", { maxAge: 0 });
   res.send({
     message: "Successfully logged out"
