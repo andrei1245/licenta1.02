@@ -3,6 +3,14 @@ import { Component, OnInit } from '@angular/core';
 import { Emitters } from '../../emitters/emitter';
 import { Router } from '@angular/router';
 
+interface MP3File {
+  _id: string;
+  filename: string;
+  uploadDate: Date;
+  timestamp: number;
+  duration?: number;
+}
+
 @Component({
   selector: 'app-home',
   standalone: false,
@@ -13,11 +21,12 @@ export class HomeComponent implements OnInit {
   message: string = "";
   selectedFile: File | null = null;
   uploadedFile: string | null = null;
-  mp3List: any[] = []; 
+  mp3List: MP3File[] = []; 
 
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
+   
     this.loadUserData();
     this.loadMP3Files(); 
   }
@@ -44,13 +53,52 @@ export class HomeComponent implements OnInit {
   private loadMP3Files(): void {
     this.http.get('http://localhost:5000/api/mp3s', { withCredentials: true })
     .subscribe({
-      next: (files: any) => {
-        console.log('Files loaded:', files);
-        this.mp3List = files;
+      next: (res: any) => {
+        const files = res.data ? res.data : res;
+        this.mp3List = files.map((file: MP3File) => ({
+          ...file,
+          timestamp: Date.now()
+        }));
+
+        // Get duration for each audio file
+        this.mp3List.forEach(file => {
+          const audio = new Audio();
+          
+          // Add event listeners before setting src
+          const loadHandler = () => {
+            if (audio.duration && isFinite(audio.duration)) {
+              console.log(`Duration for ${file.filename}:`, audio.duration);
+              file.duration = audio.duration;
+            } else {
+              console.warn(`Invalid duration for file: ${file.filename}`);
+              file.duration = 0;
+            }
+            cleanup();
+          };
+
+          const errorHandler = (err: ErrorEvent) => {
+            console.error(`Error loading audio for ${file.filename}:`, err);
+            file.duration = 0;
+            cleanup();
+          };
+
+          const cleanup = () => {
+            audio.removeEventListener('loadedmetadata', loadHandler);
+            audio.removeEventListener('error', errorHandler);
+            audio.remove(); // Remove the audio element
+          };
+
+          audio.addEventListener('loadedmetadata', loadHandler);
+          audio.addEventListener('error', errorHandler);
+          
+          // Set preload and src after adding listeners
+          audio.preload = 'metadata';
+          audio.src = `http://localhost:5000/api/mp3/${file._id}?t=${file.timestamp}`;
+        });
       },
       error: (err) => {
         console.error("Error loading MP3 files:", err);
-        if(err.status === 401) {
+        if (err.status === 401) {
           this.router.navigate(['/login']);
         } else {
           alert('Error loading files list');
@@ -115,5 +163,42 @@ export class HomeComponent implements OnInit {
           alert('Upload failed!');
         }
       });
+  }
+
+
+  downloadFile(fileId: string): void {
+    this.http.get(`http://localhost:5000/api/mp3/${fileId}/download`, {
+      responseType: 'blob',
+      withCredentials: true
+    }).subscribe({
+      next: (blob: Blob) => {
+        // Find the file info from mp3List
+        const file = this.mp3List.find(f => f._id === fileId);
+        if (!file) {
+          alert('File information not found');
+          return;
+        }
+  
+        // Create a download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.filename; // Use the original filename
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+      error: (error) => {
+        console.error('Download error:', error);
+        alert('Failed to download file');
+      }
+    });
+  }
+
+  navigateToRecord(): void {
+    this.router.navigate(['/record']);
   }
 }

@@ -22,7 +22,14 @@
                Logout
             </a>
         </li>
-        
     </ul>
+    <ul class="navbar-nav me-auto mb-2 mb-md-0" *ngIf="authenticated">
+        <li class="nav-item">
+            <a routerLink="/profile"  class="nav-link">
+               Profile
+            </a>
+        </li>
+    </ul>
+
 </nav>
  

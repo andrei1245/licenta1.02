@@ -6,6 +6,11 @@ const multer = require('multer');
 const router = Router();
 const MP3 = require('../models/mp3');
 const mongoose = require('mongoose');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+const fs = require('fs');
+const path = require('path');
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 require("dotenv").config();
 const SECRET_KEY1 = process.env.SECRET_KEY; 
@@ -15,14 +20,14 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'audio/mpeg') {
+    // Accept both MP3 and WebM audio files
+    if (file.mimetype === 'audio/mpeg' || 
+        file.mimetype === 'audio/webm' || 
+        file.mimetype === 'audio/webm;codecs=opus') {
       cb(null, true);
     } else {
-      cb(new Error('Doar fișiere MP3 sunt permise!'), false);
+      cb(new Error('Only MP3 and WebM audio files are allowed!'));
     }
-  },
-  limits: {
-    fileSize: 10 * 1024 * 1024 // Limita 10MB
   }
 });
 
@@ -42,26 +47,73 @@ const authMiddleware = async (req, res, next) => {
 
 
 router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send({ message: 'No file uploaded or invalid file type' });
-  }
-
-  const mp3 = new MP3({
-    filename: req.file.originalname,
-    data: req.file.buffer,
-    contentType: req.file.mimetype,
-    user: req.user._id 
-  });
-
   try {
-    await mp3.save();
-    res.status(200).send({ 
-      message: 'File uploaded successfully', 
-      file: mp3._id
-    });
+    if (!req.file) {
+      return res.status(400).send({ message: 'No file uploaded' });
+    }
+
+    const tempDir = path.join(__dirname, '..', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const inputPath = path.join(tempDir, `${Date.now()}_input.webm`);
+    const outputPath = path.join(tempDir, `${Date.now()}_output.mp3`);
+
+    try {
+      fs.writeFileSync(inputPath, req.file.buffer);
+
+      // Convert WebM to MP3 with minimal processing
+      await new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+          .toFormat('mp3')
+          .audioFilters([
+            // Gentle noise gate to remove very low volume noise
+            'silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-60dB',
+            // Light normalization
+            'dynaudnorm=p=0.9:m=100'
+          ])
+          .outputOptions([
+            '-acodec', 'libmp3lame',
+            '-ab', '128k',
+            '-ar', '44100',
+            '-ac', '2'
+          ])
+          .on('start', (commandLine) => {
+            console.log('FFmpeg command:', commandLine);
+          })
+          .on('error', reject)
+          .on('end', resolve)
+          .save(outputPath);
+      });
+
+      const finalBuffer = fs.readFileSync(outputPath);
+
+      const mp3 = new MP3({
+        filename: req.file.originalname.replace('.webm', '.mp3'),
+        data: finalBuffer,
+        contentType: 'audio/mpeg',
+        user: req.user._id
+      });
+
+      await mp3.save();
+
+      // Cleanup
+      fs.unlinkSync(inputPath);
+      fs.unlinkSync(outputPath);
+
+      res.status(200).send({
+        message: 'File uploaded successfully',
+        file: mp3._id
+      });
+    } catch (error) {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      throw error;
+    }
   } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: 'Error saving file to database' });
+    console.error('Upload error:', error);
+    res.status(500).send({ message: 'Error uploading file: ' + error.message });
   }
 });
 
@@ -92,10 +144,38 @@ router.get('/mp3/:id', async (req, res) => {
     if (!mp3) {
       return res.status(404).send({ message: 'File not found' });
     }
-    res.set('Content-Type', mp3.contentType);
-    res.send(mp3.data);
+
+    // Set proper headers for audio streaming
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    // Handle range requests for better streaming
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : mp3.data.length - 1;
+      const chunksize = (end - start) + 1;
+
+      res.status(206);
+      res.set({
+        'Content-Range': `bytes ${start}-${end}/${mp3.data.length}`,
+        'Content-Length': chunksize
+      });
+      
+      const buffer = Buffer.from(mp3.data.buffer, start, chunksize);
+      res.send(buffer);
+    } else {
+      res.set('Content-Length', mp3.data.length);
+      res.send(mp3.data);
+    }
   } catch (error) {
-    console.error(error);
+    console.error('Error streaming audio:', error);
     res.status(500).send({ message: 'Error retrieving file from database' });
   }
 });
@@ -143,57 +223,43 @@ router.get('/mp3/:id/details', authMiddleware, async (req, res) => {
 router.get('/mp3s', authMiddleware, async (req, res) => {
   try {
     const files = await MP3.find({ user: req.user._id })
-                         .select('filename _id uploadDate');
-    res.status(200).send(files);
+                         .select('filename _id uploadDate')
+                         .lean();
+    
+    // Return data in consistent format
+    res.status(200).json({
+      success: true,
+      data: files
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: 'Error retrieving files list' });
+    console.error('Error fetching MP3s:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving files list',
+      error: error.message
+    });
   }
 });
 
 router.put('/edit-mp3/:id', authMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { filename } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        error: "ID invalid",
-        code: "INVALID_ID"
-      });
-    }
-
-
-    if (!filename) {
-      return res.status(400).json({ message: 'Filename is required' });
-    }
-
-    const mp3 = await MP3.findById(id);
+    const mp3 = await MP3.findById(req.params.id);
     
     if (!mp3) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({ success: false, message: 'File not found' });
     }
 
     if (mp3.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Unauthorized' });
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
 
-    mp3.filename = filename;
+    mp3.filename = req.body.filename;
     await mp3.save();
 
-    res.status(200).json({
-      message: 'File updated successfully',
-      file: {
-        _id: mp3._id,
-        filename: mp3.filename,
-        uploadDate: mp3.uploadDate
-      }
-    });
-
+    res.json({ success: true, message: 'File updated successfully' });
   } catch (error) {
-    console.error('Edit error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update error:', error);
+    res.status(500).json({ success: false, message: 'Update failed' });
   }
 });
 
@@ -214,7 +280,7 @@ router.post('/register', async (req, res) => {
       // Creează un nou user
       const user = new User({
         email: email,
-        password: hashed_password
+        password: hashed_password 
       });
       const result = await user.save();
 
@@ -294,6 +360,47 @@ router.get('/user', async (req, res) => {
   }
 });
 
+router.put('/user/update', authMiddleware, async (req, res) => {
+  try {
+    const { email, old_password, new_password } = req.body;
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify old password for any changes
+    if (!old_password) {
+      return res.status(400).json({ message: 'Current password is required' });
+    }
+
+    const isMatch = await bcrypt.compare(old_password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Update email if provided
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email is already in use' });
+      }
+      user.email = email;
+    }
+
+    // Update password if new password is provided
+    if (new_password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(new_password, salt);
+    }
+
+    await user.save();
+    res.status(200).json({ message: 'Account updated successfully' });
+  } catch (error) {
+    console.error('Update error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 router.post('/logout', async (req, res) => {
   console.log("Received POST request to /logout"); 
@@ -301,6 +408,215 @@ router.post('/logout', async (req, res) => {
   res.send({
     message: "Successfully logged out"
   });
+});
+
+// Update the /mp3/:id/cut endpoint
+router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
+  try {
+    const { startTime, endTime } = req.body;
+    const mp3 = await MP3.findById(req.params.id);
+
+    if (!mp3) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    if (mp3.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Create temporary input file
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const inputPath = path.join(tempDir, `${mp3._id}_input.mp3`);
+    const outputPath = path.join(tempDir, `${mp3._id}_output.mp3`);
+    
+    // Ensure temp directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Write buffer to temporary file
+    fs.writeFileSync(inputPath, mp3.data);
+    console.log('Input file written:', inputPath);
+
+    // Process the audio using FFmpeg with explicit format
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .setStartTime(startTime)
+        .setDuration(endTime - startTime)
+        .outputOptions([
+          '-acodec libmp3lame',
+          '-b:a 128k',
+          '-map 0:a',  // Only copy audio stream
+          '-y'  // Overwrite output file if exists
+        ])
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          console.log('Processing: ' + progress.percent + '% done');
+        })
+        .on('end', () => {
+          console.log('FFmpeg processing finished');
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reject(err);
+        })
+        .save(outputPath);
+    });
+
+    // Verify output file exists and has content
+    if (!fs.existsSync(outputPath)) {
+      throw new Error('Output file was not created');
+    }
+
+    const outputStats = fs.statSync(outputPath);
+    if (outputStats.size === 0) {
+      throw new Error('Output file is empty');
+    }
+
+    // Read the processed file
+    const processedData = fs.readFileSync(outputPath);
+    console.log('Original file size:', mp3.data.length);
+    console.log('Output file size:', processedData.length);
+
+    // Update the MP3 document with the new data
+    const originalSize = mp3.data.length;
+    mp3.data = processedData;
+    await mp3.save();
+    console.log('MP3 document updated in database');
+
+    // Clean up temporary files
+    fs.unlinkSync(inputPath);
+    fs.unlinkSync(outputPath);
+    console.log('Temporary files cleaned up');
+
+    res.status(200).json({ 
+      message: 'MP3 cut successfully',
+      originalSize: originalSize,
+      newSize: processedData.length
+    });
+
+  } catch (error) {
+    console.error('Cut error:', error);
+    // Clean up any temporary files if they exist
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const inputPath = path.join(tempDir, `${req.params.id}_input.mp3`);
+    const outputPath = path.join(tempDir, `${req.params.id}_output.mp3`);
+    
+    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+
+    res.status(500).json({ 
+      message: 'Error processing audio',
+      error: error.message
+    });
+  }
+});
+
+router.get('/mp3/:id/download', authMiddleware, async (req, res) => {
+  try {
+    const mp3 = await MP3.findById(req.params.id);
+    
+    if (!mp3) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    if (mp3.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Set headers for file download
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Disposition': `attachment; filename="${mp3.filename}"`,
+      'Content-Length': mp3.data.length
+    });
+
+    res.send(mp3.data);
+  } catch (error) {
+    console.error('Download error:', error);
+    res.status(500).json({ message: 'Error downloading file' });
+  }
+});
+
+router.post('/mp3/:id/concat', authMiddleware, async (req, res) => {
+  try {
+    const { secondFileId } = req.body;
+    const firstMp3 = await MP3.findById(req.params.id);
+    const secondMp3 = await MP3.findById(secondFileId);
+
+    if (!firstMp3 || !secondMp3) {
+      return res.status(404).json({ message: 'One or both files not found' });
+    }
+
+    // Create temporary files
+    const tempDir = path.join(__dirname, '..', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const file1Path = path.join(tempDir, `${firstMp3._id}_1.mp3`);
+    const file2Path = path.join(tempDir, `${secondMp3._id}_2.mp3`);
+    const outputPath = path.join(tempDir, 'output.mp3');
+    const listPath = path.join(tempDir, 'filelist.txt');
+
+    // Write files
+    fs.writeFileSync(file1Path, firstMp3.data);
+    fs.writeFileSync(file2Path, secondMp3.data);
+
+    // Create a file list for concat
+    fs.writeFileSync(listPath, `file '${file1Path}'\nfile '${file2Path}'`);
+
+    // Concatenate using FFmpeg with concat demuxer
+    await new Promise((resolve, reject) => {
+      ffmpeg()
+        .input(listPath)
+        .inputOptions(['-f', 'concat', '-safe', '0'])
+        .outputOptions([
+          '-acodec', 'copy'
+        ])
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reject(err);
+        })
+        .on('end', resolve)
+        .save(outputPath);
+    });
+
+    // Read concatenated file
+    const concatenatedData = fs.readFileSync(outputPath);
+
+    // Update first file with concatenated data
+    firstMp3.data = concatenatedData;
+    await firstMp3.save();
+
+    // Cleanup
+    fs.unlinkSync(file1Path);
+    fs.unlinkSync(file2Path);
+    fs.unlinkSync(outputPath);
+    fs.unlinkSync(listPath);
+
+    res.status(200).json({ message: 'Files concatenated successfully' });
+  } catch (error) {
+    console.error('Concat error:', error);
+    // Cleanup on error
+    const tempDir = path.join(__dirname, '..', 'temp');
+    ['filelist.txt', 'output.mp3'].forEach(file => {
+      const filePath = path.join(tempDir, file);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
+    res.status(500).json({ 
+      message: 'Error concatenating files',
+      error: error.message 
+    });
+  }
 });
 
 module.exports = router;

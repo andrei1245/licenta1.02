@@ -2,7 +2,8 @@
 
 <form (submit)="uploadFile($event)" class="ptform">
   <input type="file" (change)="onFileSelected($event)" accept=".mp3" />
-  <button type="submit">Upload MP3</button>
+  <button type="submit" class="fixed-button">Upload MP3</button>
+  <button type="button" class="fixed-button" (click)="navigateToRecord()">Record MP3</button>
 </form>
 
 <div *ngIf="mp3List.length > 0">
@@ -12,7 +13,7 @@
         <th>File Name</th>
         <th>Upload Date</th>
         <th>Play</th>
-        <th>Actions</th> <!-- Coloana nouă pentru butoane -->
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -21,13 +22,14 @@
         <td>{{ file.uploadDate | date:'medium' }}</td>
         <td>
           <audio controls>
-            <source [src]="'http://localhost:5000/api/mp3/' + file._id" type="audio/mpeg">
+            <source [src]="'http://localhost:5000/api/mp3/' + file._id + '?t=' + file.timestamp" type="audio/mpeg">
             Your browser does not support the audio element.
           </audio>
         </td>
         <td>
-          <button class="edit-btn" (click)="editFile(file._id)">Edit</button>
-          <button class="delete-btn" (click)="deleteFile(file._id)">Delete</button>
+          <button class="edit-btn fixed-button" (click)="editFile(file._id)" length="100">Edit</button>
+          <button class="delete-btn fixed-button" (click)="deleteFile(file._id)" length="100">Delete</button>
+          <button class="download-btn fixed-button" (click)="downloadFile(file._id)"  length="100" >Download</button>
         </td>
       </tr>
     </tbody>
