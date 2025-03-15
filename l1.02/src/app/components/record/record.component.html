@@ -1,0 +1,24 @@
+<div class="record-container">
+  <h2>Record MP3</h2>
+  <div class="controls">
+    <button [disabled]="isRecording" (click)="startRecording()" class="record-btn">
+      Start Recording
+    </button>
+    <button [disabled]="!isRecording" (click)="stopRecording()" class="stop-btn">
+      Stop Recording
+    </button>
+  </div>
+
+  <div class="visualizer-container">
+    <canvas #visualizer width="500" height="200"></canvas>
+  </div>
+
+  <div class="filename-input" *ngIf="!isRecording && chunks.length > 0">
+    <input type="text" [(ngModel)]="filename" placeholder="Enter filename" required>
+    <button (click)="saveRecording()" [disabled]="!filename">Save Recording</button>
+  </div>
+
+  <div class="timer" *ngIf="isRecording">
+    {{ recordedTime }}
+  </div>
+</div>

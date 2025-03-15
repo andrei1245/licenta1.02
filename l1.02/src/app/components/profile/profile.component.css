@@ -1,0 +1,52 @@
+.card {
+  border-radius: 10px;
+  border: none;
+  background-color: #ffffff;
+}
+
+.card-body {
+  padding: 2rem;
+}
+
+.form-floating > .form-control {
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.form-floating > .form-control:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary {
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+}
+
+.alert {
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.card-title {
+  color: #344767;
+  font-weight: 600;
+}
+
+/* Optional: Add smooth transitions */
+.form-control {
+  transition: all 0.2s ease;
+}
+
+/* Optional: Add subtle hover effect to cards */
+.card:hover {
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  transition: box-shadow 0.3s ease;
+}

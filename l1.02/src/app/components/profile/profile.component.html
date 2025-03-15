@@ -1,0 +1,81 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <form [formGroup]="accountForm" (ngSubmit)="onAccountUpdate()">
+            <h2 class="text-center mb-4">Account Settings</h2>
+
+            <!-- Email Section -->
+            <div class="card mb-4">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Email Address</h5>
+                <div class="form-floating mb-3">
+                  <input formControlName="email" 
+                         type="email" 
+                         class="form-control" 
+                         id="email"
+                         placeholder="name@example.com">
+                  <label for="email">Email address</label>
+                  <div class="text-danger small mt-1" *ngIf="accountForm.get('email')?.errors?.['email']">
+                    Invalid email format
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Password Section -->
+            <div class="card mb-4">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Change Password</h5>
+                
+                <div class="form-floating mb-3">
+                  <input formControlName="old_password" 
+                         type="password" 
+                         class="form-control" 
+                         id="old_password"
+                         placeholder="Current password">
+                  <label for="old_password">Current Password</label>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input formControlName="new_password" 
+                         type="password" 
+                         class="form-control" 
+                         id="new_password"
+                         placeholder="New password">
+                  <label for="new_password">New Password</label>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input formControlName="confirm_password" 
+                         type="password" 
+                         class="form-control" 
+                         id="confirm_password"
+                         placeholder="Confirm password">
+                  <label for="confirm_password">Confirm New Password</label>
+                </div>
+
+                <div class="alert alert-warning small py-2" *ngIf="accountForm.errors?.['incomplete']">
+                  All password fields are required when changing password
+                </div>
+                <div class="alert alert-danger small py-2" *ngIf="accountForm.errors?.['mismatch']">
+                  Passwords do not match
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid">
+              <button class="btn btn-primary btn-lg" 
+                      type="submit"
+                      [disabled]="!accountForm.valid || accountForm.errors?.['noChanges']">
+                <i class="bi bi-check2-circle me-2"></i>Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

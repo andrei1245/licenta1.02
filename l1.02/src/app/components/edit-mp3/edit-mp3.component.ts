@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-edit-mp3',
@@ -11,12 +12,28 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './edit-mp3.component.html',
   styleUrls: ['./edit-mp3.component.css']
 })
-export class EditMp3Component implements OnInit {
+export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('audioPlayer') audioPlayerRef!: ElementRef<HTMLAudioElement>;
+  
   file: any = null;
   errorMessage: string = '';
   originalFilename: string = '';
   loading = true; // Adăugat pentru gestionarea stării de încărcare
   isUpdating = false; // Adăugat pentru a preveni dubla trimitere a formularului
+
+  // Add these properties
+  audioElement: HTMLAudioElement | null = null;
+  startTime: number = 0;
+  endTime: number = 0;
+  duration: number = 0; // Initialize with 0 instead of undefined
+  timestamp: number = Date.now();
+  private audioCheck: any = null;
+  currentTime: number = 0;
+
+  // Add these properties to the class
+  availableFiles: any[] = [];
+  selectedFileId: string | null = null;
+  showFileSelector: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -33,15 +50,190 @@ export class EditMp3Component implements OnInit {
       this.handleInvalidId();
     }
   }
+
+  ngAfterViewInit() {
+    // Initialize audio element after view is ready
+    if (this.audioPlayerRef?.nativeElement) {
+      this.initAudioElement();
+    }
+  }
+
+  ngOnDestroy() {
+    // Clean up interval when component is destroyed
+    if (this.audioCheck) {
+      clearInterval(this.audioCheck);
+    }
+    // Remove event listeners
+    if (this.audioElement) {
+      this.audioElement.removeEventListener('loadedmetadata', this.handleMetadata);
+      this.audioElement.removeEventListener('durationchange', this.handleDurationChange);
+      this.audioElement.removeEventListener('canplaythrough', this.handleCanPlayThrough);
+    }
+  }
+
+  private handleMetadata = () => {
+    if (this.audioElement) {
+      console.log('Metadata loaded, duration:', this.audioElement.duration);
+      if (this.audioElement.duration && !isNaN(this.audioElement.duration)) {
+        this.duration = this.audioElement.duration;
+        this.endTime = this.duration;
+      }
+    }
+  };
+
+  private handleDurationChange = () => {
+    if (this.audioElement) {
+      console.log('Duration changed:', this.audioElement.duration);
+      if (this.audioElement.duration && !isNaN(this.audioElement.duration)) {
+        this.duration = this.audioElement.duration;
+        this.endTime = this.duration;
+      }
+    }
+  };
+
+  private handleCanPlayThrough = () => {
+    if (this.audioElement) {
+      console.log('Can play through, duration:', this.audioElement.duration);
+      if (this.audioElement.duration && !isNaN(this.audioElement.duration)) {
+        this.duration = this.audioElement.duration;
+        this.endTime = this.duration;
+      }
+    }
+  };
+
+  private initAudioElement() {
+    if (this.audioCheck) {
+      clearInterval(this.audioCheck);
+      this.audioCheck = null;
+    }
+
+    // Create a new Audio element to preload the file
+    const preloadAudio = new Audio();
+    preloadAudio.src = `http://localhost:5000/api/mp3/${this.file._id}?t=${this.timestamp}`;
+    
+    preloadAudio.addEventListener('loadedmetadata', () => {
+      console.log('Preload metadata loaded, duration:', preloadAudio.duration);
+      if (preloadAudio.duration && !isNaN(preloadAudio.duration)) {
+        this.duration = preloadAudio.duration;
+        this.endTime = this.duration;
+      }
+    });
+
+    // Initialize the visible audio element
+    if (this.audioPlayerRef?.nativeElement) {
+      this.audioElement = this.audioPlayerRef.nativeElement;
+
+      // Remove existing listeners
+      this.audioElement.removeEventListener('loadedmetadata', this.handleMetadata);
+      this.audioElement.removeEventListener('durationchange', this.handleDurationChange);
+      this.audioElement.removeEventListener('canplaythrough', this.handleCanPlayThrough);
+
+      // Add event listeners
+      this.audioElement.addEventListener('loadedmetadata', this.handleMetadata);
+      this.audioElement.addEventListener('durationchange', this.handleDurationChange);
+      this.audioElement.addEventListener('canplaythrough', this.handleCanPlayThrough);
+      this.audioElement.addEventListener('timeupdate', () => {
+        if (this.audioElement) {
+          requestAnimationFrame(() => {
+            this.currentTime = this.audioElement!.currentTime;
+          });
+        }
+      });
+
+      // Force load the audio
+      this.audioElement.load();
+      console.log('Audio element initialized');
+    }
+  }
+
+  // Update the loadFile method to reinitialize audio element after loading new file
   private loadFile(id: string): void {
+    this.loading = true;
+    this.duration = 0; // Reset duration
+    this.timestamp = Date.now(); // Update timestamp for cache busting
+
     this.http.get(`http://localhost:5000/api/mp3/${id}/details`, { 
       withCredentials: true 
     }).subscribe({
-      next: (res: any) => this.handleSuccess(res), // Elimină parametrul id de aici
-      error: (err) => this.handleError(err)
+      next: (response: any) => {
+        this.file = response.data;
+        this.originalFilename = response.data.filename;
+        this.loading = false;
+        
+        // Wait for view to update before initializing audio
+        setTimeout(() => {
+          this.initAudioElement();
+          
+          // Add additional check after a delay
+          setTimeout(() => {
+            if (this.duration === 0 && this.audioElement) {
+              console.log('Retrying audio duration fetch...');
+              this.audioElement.load();
+              this.initAudioElement();
+            }
+          }, 1000);
+        }, 100);
+      },
+      error: (error) => {
+        this.errorMessage = error.error.message || 'Error loading file';
+        this.loading = false;
+      }
     });
   }
 
+  cutMP3() {
+    console.log('Attempting to cut MP3:', {
+      startTime: this.startTime,
+      endTime: this.endTime,
+      duration: this.duration
+    });
+  
+    if (!this.validateCutTimes()) return;
+  
+    this.isUpdating = true;
+    this.http.post(
+      `http://localhost:5000/api/mp3/${this.file._id}/cut`,
+      { 
+        startTime: parseFloat(this.startTime.toString()),
+        endTime: parseFloat(this.endTime.toString())
+      },
+      { withCredentials: true }
+    ).subscribe({
+      next: (response: any) => {
+        console.log('Cut response:', response);
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: `MP3 cut successfully. Original size: ${response.originalSize} bytes, New size: ${response.newSize} bytes`,
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          // Reset form values
+          this.startTime = 0;
+          this.endTime = 0;
+          
+          // Force reload audio with new timestamp
+          this.timestamp = Date.now();
+          
+          // Reload file details and reinitialize audio
+          this.loadFile(this.file._id);
+          
+          // Reset updating state to enable the button again
+          this.isUpdating = false;
+        });
+      },
+      error: (error) => {
+        console.error('Cut error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.error.message || 'Failed to cut MP3'
+        });
+        this.isUpdating = false;
+      }
+    });
+  }
+  
   updateFile(): void {
     if (!this.validateForm()) return;
   
@@ -53,123 +245,141 @@ export class EditMp3Component implements OnInit {
       { filename: this.file.filename.trim() },
       { withCredentials: true }
     ).subscribe({
-      next: (res: any) => {
-        console.log('Răspuns API brut din updateFile:', res); // Log the raw response
-        this.handleUpdateSuccess(res);
+      next: () => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Changes saved successfully',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          // Navigate to home and reload the page to refresh the MP3 list
+          this.router.navigate(['/home']);
+        });
       },
-      error: (err) => {
-        this.handleUpdateError(err);
+      error: (error) => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.error.message || 'Failed to update file'
+        });
         this.isUpdating = false;
       }
     });
   }
-  
 
-  // === Metode helper ===
-  private handleSuccess(response: any): void {
-    try {
-      console.log('Răspuns API brut:', response);
-      
-      if (!response?.data || !response.data._id || !response.data.filename) {
-        // Crează un HttpErrorResponse corect
-        const error = new HttpErrorResponse({
-          error: { message: 'Structură invalidă a răspunsului' },
-          status: 500,
-          statusText: 'Internal Server Error',
-          url: this.route.snapshot.url.join('/')
+  // Add this method to load available files
+  loadAvailableFiles() {
+    this.http.get('http://localhost:5000/api/mp3s', { 
+      withCredentials: true 
+    }).subscribe({
+      next: (res: any) => {
+        this.availableFiles = res.data.filter((f: any) => f._id !== this.file._id);
+        this.showFileSelector = true;
+      },
+      error: (err) => {
+        console.error('Error loading files:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Could not load available files'
         });
-        throw error;
       }
-  
-      this.file = {
-        _id: response.data._id,
-        filename: response.data.filename,
-        uploadDate: new Date(response.data.uploadDate)
-      };
-  
-      this.originalFilename = this.file.filename;
-      this.loading = false;
-  
-    } catch (error) {
-      console.error('Eroare procesare răspuns:', error);
-      if (error instanceof HttpErrorResponse) {
-        this.handleError(error);
-      } else {
-        this.handleError(new HttpErrorResponse({
-          error: { message: 'Eroare necunoscută' },
-          status: 500
-        }));
-      }
-    }
+    });
   }
 
-
-  private handleError(error: HttpErrorResponse): void {
-    this.loading = false;
-    
-    if (error.status === 401) {
-      this.router.navigate(['/login']);
+  // Add concat method
+  concatMP3() {
+    if (!this.selectedFileId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No File Selected',
+        text: 'Please select a file to concatenate'
+      });
       return;
     }
-
-    this.errorMessage = this.getErrorMessage(error);
-    console.error('Eroare la încărcare:', error);
-  }
-
-  private handleUpdateSuccess(response: any): void {
-    try {
-      console.log('Răspuns API brut:', response); // Log the raw response for debugging
   
-      // Parse the response based on its actual structure
-      const updatedData = response.file || response; // Use the `file` field
-  
-      // Debugging: Log the updatedData to see its structure
-      console.log('Date actualizate:', updatedData);
-  
-      // Validate the response structure
-      if (!updatedData || !updatedData._id) {
-        throw new Error('Date invalide în răspuns: Lipsește _id sau structura este incorectă');
+    this.isUpdating = true;
+    this.http.post(
+      `http://localhost:5000/api/mp3/${this.file._id}/concat`,
+      { secondFileId: this.selectedFileId },
+      { withCredentials: true }
+    ).subscribe({
+      next: (response: any) => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Files concatenated successfully',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          this.selectedFileId = null;
+          this.showFileSelector = false;
+          this.timestamp = Date.now();
+          this.loadFile(this.file._id);
+          this.isUpdating = false;
+        });
+      },
+      error: (err) => {
+        console.error('Concat error:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.error?.message || 'Failed to concatenate files'
+        });
+        this.isUpdating = false;
       }
-  
-      // Update the component state with the new data
-      this.file = {
-        ...this.file,
-        ...updatedData
-      };
-      this.originalFilename = updatedData.filename;
-  
-      // Show success message
-      this.showSuccessAlert('Modificările au fost salvate!');
-  
-      // Navigate to home after 1.5 seconds
-      setTimeout(() => {
-        this.router.navigate(['/home']);
-      }, 1500);
-  
-    } catch (error) {
-      console.error('Eroare în handleUpdateSuccess:', error);
-      this.handleUpdateError(error as HttpErrorResponse);
-    } finally {
-      this.isUpdating = false;
+    });
+  }
+
+  private validateCutTimes(): boolean {
+    console.log('Validating times:', {
+      startTime: this.startTime,
+      endTime: this.endTime,
+      duration: this.duration
+    });
+
+    // Check if values are numbers and not NaN
+    if (typeof this.startTime !== 'number' || isNaN(this.startTime) ||
+        typeof this.endTime !== 'number' || isNaN(this.endTime) ||
+        typeof this.duration !== 'number' || isNaN(this.duration)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Input',
+        text: 'Please enter valid numbers for start and end times'
+      });
+      return false;
     }
-  }
 
-  
-  private showSuccessAlert(message: string): void {
-    const alert = document.createElement('div');
-    alert.className = 'success-alert';
-    alert.textContent = message;
-    document.body.appendChild(alert);
-    
-    setTimeout(() => {
-      alert.remove();
-    }, 2000);
-  }
+    // Validate time ranges
+    if (this.startTime < 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Start Time',
+        text: 'Start time cannot be negative'
+      });
+      return false;
+    }
 
-  private handleUpdateError(error: HttpErrorResponse): void {
-    this.isUpdating = false;
-    this.errorMessage = this.getErrorMessage(error);
-    console.error('Eroare la actualizare:', error);
+    if (this.endTime <= this.startTime) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Time Range',
+        text: 'End time must be greater than start time'
+      });
+      return false;
+    }
+
+    if (this.endTime > this.duration) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid End Time',
+        text: `End time cannot exceed audio duration (${this.duration.toFixed(2)} seconds)`
+      });
+      return false;
+    }
+
+    return true;
   }
 
   private validateForm(): boolean {
@@ -177,12 +387,6 @@ export class EditMp3Component implements OnInit {
       this.errorMessage = 'Numele fișierului nu poate fi gol!';
       return false;
     }
-
-    if (this.file.filename === this.originalFilename) {
-      this.errorMessage = 'Nu s-au detectat modificări!';
-      return false;
-    }
-
     return true;
   }
 
@@ -206,6 +410,16 @@ export class EditMp3Component implements OnInit {
     return /^[0-9a-fA-F]{24}$/.test(id);
   }
   navigateToHome(): void {
-    this.router.navigate(['/home']);
+    this.router.navigate(['/home']).then(() => {;
+    window.location.reload();  
+    });
+  }
+
+  // Add this method to format time in seconds
+  formatTime(seconds: number): string {
+    if (typeof seconds !== 'number' || isNaN(seconds)) {
+      return '0.0';
+    }
+    return seconds.toFixed(1);
   }
 }

@@ -3,10 +3,6 @@ body, html {
     margin: 0;
     padding: 0;
   }
-  
-  /* Suprascrie stilurile implicite ale containerului Bootstrap */
-
-  
   /* Stil pentru containerul tabelului */
   .table-container {
     width: 100%;
@@ -60,22 +56,11 @@ body, html {
     margin: 0;
   }
 
-  .ptform{
-    width: 100%;
-  
-  }
-  
-
-
-
-
-
-
   .ptform {
           /* Lțime maximă */
     margin: 0 auto;           /* Centrează pe orizontală */
     padding: 2rem;            /* Spațiu interior */
-   
+    width: 100%;
     border:none;   /* Chenar subțire */
     border-radius: 8px;       /* Colțuri rotunjite */
     text-align: center;       /* Centrează conținutul */
@@ -87,40 +72,25 @@ body, html {
     margin: 0 auto 1rem auto; /* Centrează inputul și adaugă spațiu dedesubt */
   }
   
-  /* Stiluri pentru buton */
-  .ptform button {
-    padding: 10px 20px;
-    font-size: 1rem;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    align-self: center;
-  }
+ 
+
   
-  .ptform button:hover {
-    background-color: #0056b3;
-  }
-
-
-
-
-  edit-btn {
+  .fixed-button {
     padding: 10px 20px;
     font-size: 1rem;
-    background-color: #007bff; /* Albastru identic cu butonul de upload */
+    background-color: #9fa8b4;
+    color: #220a0a; 
     border: none;
     border-radius: 4px;
-    color: #fff;
+  
     cursor: pointer;
     transition: background-color 0.3s ease;
     display: inline-block;
-    text-decoration: none;
+    margin: 0 2.5px;
+    text-align: center;
   }
-  
-  .edit-btn:hover {
+
+  .fixed-button:hover {
     background-color: #0056b3; /* Efect hover identic */
     color: #fff;
   }
@@ -130,7 +100,6 @@ body, html {
     text-align: center;
     padding: 15px 10px;
   }
-  
   
   .ptform button, .edit-btn {
     min-width: 120px; 
