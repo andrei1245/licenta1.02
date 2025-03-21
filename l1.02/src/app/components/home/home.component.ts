@@ -18,17 +18,17 @@ interface MP3File {
   styleUrls: ['./home.component.css']
 })
 export class HomeComponent implements OnInit {
-  message: string = "";
+  message: string = "Welcome to the MP3 uploader!";
   selectedFile: File | null = null;
   uploadedFile: string | null = null;
-  mp3List: MP3File[] = []; 
+  mp3List: MP3File[] = [];
+  currentTimestamp: number = Date.now(); // Add this property
 
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
-   
     this.loadUserData();
-    this.loadMP3Files(); 
+    this.loadMP3Files();
   }
    
   editFile(fileId: string): void {
@@ -63,37 +63,50 @@ export class HomeComponent implements OnInit {
         // Get duration for each audio file
         this.mp3List.forEach(file => {
           const audio = new Audio();
+          let retryCount = 0;
+          const maxRetries = 3;
           
-          // Add event listeners before setting src
-          const loadHandler = () => {
-            if (audio.duration && isFinite(audio.duration)) {
-              console.log(`Duration for ${file.filename}:`, audio.duration);
-              file.duration = audio.duration;
-            } else {
-              console.warn(`Invalid duration for file: ${file.filename}`);
-              file.duration = 0;
-            }
-            cleanup();
+          const loadAudio = () => {
+            const loadHandler = () => {
+              if (audio.duration && isFinite(audio.duration)) {
+                console.log(`Duration for ${file.filename}:`, audio.duration);
+                file.duration = audio.duration;
+                cleanup();
+              } else {
+                retryWithDelay();
+              }
+            };
+
+            const errorHandler = (err: ErrorEvent) => {
+              console.error(`Error loading audio for ${file.filename}:`, err);
+              retryWithDelay();
+            };
+
+            const retryWithDelay = () => {
+              cleanup();
+              if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(`Retrying (${retryCount}/${maxRetries}) for ${file.filename}`);
+                setTimeout(() => loadAudio(), 1000 * retryCount);
+              } else {
+                console.warn(`Failed to load audio for ${file.filename} after ${maxRetries} attempts`);
+                file.duration = 0;
+              }
+            };
+
+            const cleanup = () => {
+              audio.removeEventListener('loadedmetadata', loadHandler);
+              audio.removeEventListener('error', errorHandler);
+            };
+
+            audio.addEventListener('loadedmetadata', loadHandler);
+            audio.addEventListener('error', errorHandler);
+            
+            audio.preload = 'metadata';
+            audio.src = `http://localhost:5000/api/mp3/${file._id}?t=${Date.now()}`;
           };
 
-          const errorHandler = (err: ErrorEvent) => {
-            console.error(`Error loading audio for ${file.filename}:`, err);
-            file.duration = 0;
-            cleanup();
-          };
-
-          const cleanup = () => {
-            audio.removeEventListener('loadedmetadata', loadHandler);
-            audio.removeEventListener('error', errorHandler);
-            audio.remove(); // Remove the audio element
-          };
-
-          audio.addEventListener('loadedmetadata', loadHandler);
-          audio.addEventListener('error', errorHandler);
-          
-          // Set preload and src after adding listeners
-          audio.preload = 'metadata';
-          audio.src = `http://localhost:5000/api/mp3/${file._id}?t=${file.timestamp}`;
+          loadAudio();
         });
       },
       error: (err) => {

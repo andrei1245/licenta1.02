@@ -60,13 +60,13 @@ mongoose.connect(process.env.MONGO_URL, {
   useUnifiedTopology: true
 })
 .then(() => {
-  console.log("✅ Conectat cu succes la baza de date");
+  console.log("Conectat cu succes la baza de date");
   app.listen(5000, () => {
-    console.log("🚀 Serverul rulează pe portul 5000");
+    console.log("Serverul rulează pe portul 5000");
   });
 })
 .catch(err => {
-  console.error("❌ Eroare critică la conectarea la MongoDB:", err);
+  console.error("Eroare critică la conectarea la MongoDB:", err);
   process.exit(1); 
 });
 

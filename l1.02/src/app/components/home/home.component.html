@@ -6,6 +6,10 @@
   <button type="button" class="fixed-button" (click)="navigateToRecord()">Record MP3</button>
 </form>
 
+<audio *ngIf="uploadedFile" controls [src]="'http://localhost:5000/api/mp3/' + uploadedFile + '?t=' + currentTimestamp">
+  Your browser does not support the audio element.
+</audio>
+
 <div *ngIf="mp3List.length > 0">
   <table class="file-table">
     <thead>

@@ -147,40 +147,10 @@
     flex-direction: row;
     gap: 10px;
     margin-top: 20px;
-    justify-content: center;  /* Center the buttons horizontally */
-    width: 100%;             /* Take full width of container */
+    justify-content: center;  
+    width: 100%;             
   }
-
-  .cut-btn,
-  .concat-btn {
-    background-color: #9fa8b4;
-    color: #220a0a;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 120px;           /* Set fixed width instead of max-width */
-    height: 40px;
-    transition: background-color 0.2s;
-  }
-
-  .cut-btn:hover,
-  .concat-btn:hover {
-    background-color: #0056b3;
- color: #fff;
-  }
-
-  .cut-btn:disabled,
-  .concat-btn:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-    opacity: 0.65;
-  }
-
+  
   .current-time {
     margin-top: 8px;
     font-family: monospace;
@@ -244,3 +214,28 @@
     cursor: not-allowed;
   }
 
+  .basic-btn{
+    background-color: #9fa8b4;
+    color: #220a0a;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 120px;           
+    height: 40px;
+    transition: background-color 0.2s;
+  }
+
+  .basic-btn:hover {
+    background-color: #0056b3;
+    color: #fff;
+  }
+  .basic-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.65;
+  }

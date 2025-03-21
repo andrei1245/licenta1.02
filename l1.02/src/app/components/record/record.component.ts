@@ -62,51 +62,64 @@ export class RecordComponent implements OnDestroy, AfterViewInit {
   }
 
   async startRecording() {
-    if (!this.isBrowser) return;
-    
-    // Wait for canvas initialization if needed
-    if (!this.canvasInitialized) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    if (!this.canvasRef?.nativeElement || !this.canvasCtx) {
+    if (!this.isBrowser || !this.canvasRef?.nativeElement || !this.canvasCtx) {
       console.error('Canvas not properly initialized');
       return;
     }
-
+  
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        } 
+      // 1. Create AudioContext first (without forcing a sampleRate)
+      // Let the browser choose its default sample rate.
+      this.audioContext = new AudioContext({ latencyHint: 'interactive' });
+      await this.audioContext.resume();
+      const desiredSampleRate = this.audioContext.sampleRate;
+      console.log("AudioContext sample rate:", desiredSampleRate);
+  
+      // 2. Request the media stream with a sampleRate constraint set to AudioContext's sample rate.
+      // Cast the constraint as 'any' since sampleRate is not a standard property for MediaTrackConstraints.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: <any>{
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 2,
+          sampleRate: desiredSampleRate
+        }
       });
-      
-      this.audioContext = new AudioContext();
+  
+      // (Optional) Check what sample rate the stream reports:
+      const track = stream.getAudioTracks()[0];
+      const settings = track.getSettings();
+      console.log("Stream sample rate from track settings:", settings.sampleRate);
+  
+      // 3. Create audio nodes using the stream
       const source = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 2048;
+      this.analyser.fftSize = 512;
+      this.analyser.smoothingTimeConstant = 0.4;
       source.connect(this.analyser);
-
-      this.drawVisualization();
-
+  
+      // 4. Initialize MediaRecorder
       this.mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000
+        audioBitsPerSecond: 192000
       });
-      
       this.chunks = [];
       this.mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           this.chunks.push(e.data);
         }
       };
-
-      this.mediaRecorder.start(1000); // Record in 1-second chunks
+  
+      // 5. Start recording, timer, and visualization
       this.isRecording = true;
       this.startTimer();
+      this.mediaRecorder.start(10);
+      this.drawVisualization();
+  
     } catch (err) {
+      this.isRecording = false;
+      this.stopTimer();
       console.error('Error accessing microphone:', err);
       alert('Could not access microphone. Please check permissions.');
     }
@@ -209,11 +222,13 @@ export class RecordComponent implements OnDestroy, AfterViewInit {
   }
 
   private startTimer() {
-    let seconds = 0;
+    let startTime = Date.now();
+    this.recordedTime = '00:00:00';
+    
     this.timer = setInterval(() => {
-      seconds++;
-      this.recordedTime = new Date(seconds * 1000).toISOString().substr(11, 8);
-    }, 1000);
+      const elapsedTime = Date.now() - startTime;
+      this.recordedTime = new Date(elapsedTime).toISOString().substr(11, 8);
+    }, 100); // Update more frequently
   }
 
   private stopTimer() {

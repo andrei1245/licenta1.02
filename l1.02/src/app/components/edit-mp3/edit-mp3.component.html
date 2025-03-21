@@ -1,127 +1,134 @@
 <div class="edit-container">
-    <h2>Editare fișier</h2>
-  
-    <!-- Loading state -->
-    <div *ngIf="loading" class="loading">
-      <p>Se încarcă detaliile...</p>
-    </div>
-  
-    <!-- Error state -->
-    <div *ngIf="errorMessage" class="error-message">
-      {{ errorMessage }}
-    </div>
-  
-    <!-- Success state -->
-    <div *ngIf="file && !loading">
-      <div class="form-group">
-        <label>Nume fișier:</label>
-        <input 
-          type="text" 
-          [(ngModel)]="file.filename" 
-          [disabled]="isUpdating"
-          class="filename-input"
-        >
-      </div>
+  <h2>Editare fișier</h2>
 
-      <div *ngIf="file && !loading" class="audio-editor">
-        <h3>Cut Audio</h3>
-        <audio #audioPlayer controls preload="auto">
-          <source 
-            [src]="'http://localhost:5000/api/mp3/' + file._id + '?t=' + timestamp" 
-            type="audio/mpeg"
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading">
+    <p>Se încarcă detaliile...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="errorMessage" class="error-message">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Success state -->
+  <div *ngIf="file && !loading">
+    <div class="form-group">
+      <label>Nume fișier:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="file.filename" 
+        [disabled]="isUpdating"
+        class="filename-input"
+      >
+    </div>
+
+    <div class="audio-editor">
+      <h3>Cut Audio</h3>
+      <audio #audioPlayer controls preload="auto">
+        <source 
+          [src]="'http://localhost:5000/api/mp3/' + file._id + '?t=' + timestamp" 
+          type="audio/mpeg"
+        >
+        Your browser does not support the audio element.
+      </audio>
+      <div class="current-time" *ngIf="currentTime >= 0">
+        {{ formatTime(currentTime) }} seconds
+      </div>
+    
+      <div class="time-controls">
+        <div class="form-group">
+          <label>Start Time:</label>
+          <input 
+            type="number" 
+            [(ngModel)]="startTime" 
+            [min]="0" 
+            [max]="duration"
+            step="0.1"
+            class="form-control"
+            (change)="startTime = +startTime"
+            [disabled]="duration === 0"
           >
-          Your browser does not support the audio element.
-        </audio>
-        <div class="current-time" *ngIf="currentTime >= 0">
-          {{formatTime(currentTime)}} seconds
+          <small class="time-display" *ngIf="startTime">
+            {{ formatTime(startTime) }} seconds
+          </small>
         </div>
     
-        <div class="time-controls">
-          <div class="form-group">
-            <label>Start Time:</label>
-            <input 
-              type="number" 
-              [(ngModel)]="startTime" 
-              [min]="0" 
-              [max]="duration"
-              step="0.1"
-              class="form-control"
-              (change)="startTime = +startTime"
-              [disabled]="duration === 0"
-            >
-            <small class="time-display" *ngIf="startTime">
-              {{formatTime(startTime)}} seconds
-            </small>
-            <small class="text-muted text-warning" *ngIf="duration === 0">
-              Please wait while the audio loads...
-            </small>
-          </div>
-    
-          <div class="form-group">
-            <label>End Time :</label>
-            <input 
-              type="number" 
-              [(ngModel)]="endTime" 
-              [min]="startTime" 
-              [max]="duration"
-              step="0.1"
-              class="form-control"
-              (change)="endTime = +endTime"
-            >
-          </div>
-    
-         
+        <div class="form-group">
+          <label>End Time:</label>
+          <input 
+            type="number" 
+            [(ngModel)]="endTime" 
+            [min]="startTime" 
+            [max]="duration"
+            step="0.1"
+            class="form-control"
+            (change)="endTime = +endTime"
+          >
         </div>
-      </div>
-      <div class="edit-buttons">
-        <button class="cut-btn" (click)="cutMP3()" [disabled]="isUpdating || duration === 0">
-          <i class="bi bi-scissors"></i>
-          Cut
-        </button>
-        <button class="concat-btn" (click)="loadAvailableFiles()" [disabled]="isUpdating || duration === 0">
-          <i class="bi bi-merge"></i>
-          Concat
-        </button>
       </div>
 
-      <!-- Add file selector modal -->
-      <div class="file-selector" *ngIf="showFileSelector">
-        <div class="modal-content">
-          <h3>Select file to concatenate</h3>
-          <select [(ngModel)]="selectedFileId" class="file-select">
-            <option value="">Choose a file...</option>
-            <option *ngFor="let file of availableFiles" [value]="file._id">
-              {{file.filename}}
-            </option>
-          </select>
-          <div class="modal-buttons">
-            <button (click)="concatMP3()" [disabled]="!selectedFileId" class="confirm-btn">
-              Confirm
-            </button>
-            <button (click)="showFileSelector = false" class="cancel-btn">
-              Cancel
-            </button>
-          </div>
+      <div class="form-group">
+        <label>Baseline Sound Level:</label>
+        <input 
+          type="number" 
+          [(ngModel)]="baselineSoundLevel" 
+          [min]="0" 
+          [max]="2000"
+          step="1"
+          class="form-control"
+          (change)="baselineSoundLevel = +baselineSoundLevel"
+        >
+      </div>
+    </div>
+
+    <div class="edit-buttons">
+      <button class="basic-btn" (click)="cutMP3()" [disabled]="isUpdating || duration === 0">
+        <i class="bi bi-scissors"></i> Cut
+      </button>
+      <button class="basic-btn" (click)="loadAvailableFiles()" [disabled]="isUpdating || duration === 0">
+        <i class="bi bi-merge"></i> Concat
+      </button>
+    </div>
+
+    <!-- Add file selector modal -->
+    <div class="file-selector" *ngIf="showFileSelector">
+      <div class="modal-content">
+        <h3>Select file to concatenate</h3>
+        <select [(ngModel)]="selectedFileId" class="file-select">
+          <option value="">Choose a file...</option>
+          <option *ngFor="let file of availableFiles" [value]="file._id">
+            {{ file.filename }}
+          </option>
+        </select>
+        <div class="modal-buttons">
+          <button (click)="concatMP3()" [disabled]="!selectedFileId" class="confirm-btn">
+            Confirm
+          </button>
+          <button (click)="showFileSelector = false" class="cancel-btn">
+            Cancel
+          </button>
         </div>
       </div>
+    </div>
   
-      <div class="button-group">
-        <button 
-          class="save-btn"
-          (click)="updateFile()" 
-          [disabled]="isUpdating"
-        >
-          <span *ngIf="!isUpdating">Save Changes</span>
-          <span *ngIf="isUpdating">Saving...</span>
-        </button>
-        
-        <button 
-          class="cancel-btn"
-          (click)="navigateToHome()" 
-          [disabled]="isUpdating"
-        >
-          Anulează
-        </button>
-      </div>
+    <div class="button-group">
+      <button 
+        class="save-btn"
+        (click)="updateFile()" 
+        [disabled]="isUpdating"
+      >
+        <span *ngIf="!isUpdating">Save Changes</span>
+        <span *ngIf="isUpdating">Saving...</span>
+      </button>
+      
+      <button 
+        class="cancel-btn"
+        (click)="navigateToHome()" 
+        [disabled]="isUpdating"
+      >
+        Anulează
+      </button>
     </div>
   </div>
+</div>
