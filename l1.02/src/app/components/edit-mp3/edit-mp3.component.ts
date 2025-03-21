@@ -25,7 +25,8 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
   audioElement: HTMLAudioElement | null = null;
   startTime: number = 0;
   endTime: number = 0;
-  duration: number = 0; // Initialize with 0 instead of undefined
+  duration: number = 0;
+  baselineSoundLevel: number = 100;
   timestamp: number = Date.now();
   private audioCheck: any = null;
   currentTime: number = 0;
@@ -185,7 +186,8 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
     console.log('Attempting to cut MP3:', {
       startTime: this.startTime,
       endTime: this.endTime,
-      duration: this.duration
+      duration: this.duration,
+      baselineSoundLevel: this.baselineSoundLevel
     });
   
     if (!this.validateCutTimes()) return;
@@ -195,7 +197,8 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
       `http://localhost:5000/api/mp3/${this.file._id}/cut`,
       { 
         startTime: parseFloat(this.startTime.toString()),
-        endTime: parseFloat(this.endTime.toString())
+        endTime: parseFloat(this.endTime.toString()),
+        baselineSoundLevel: parseInt(this.baselineSoundLevel.toString())
       },
       { withCredentials: true }
     ).subscribe({
@@ -205,13 +208,12 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
           icon: 'success',
           title: 'Success!',
           text: `MP3 cut successfully. Original size: ${response.originalSize} bytes, New size: ${response.newSize} bytes`,
-          timer: 1500,
+          timer: 1000,
           showConfirmButton: false
         }).then(() => {
-          // Reset form values
           this.startTime = 0;
           this.endTime = 0;
-          
+          this.baselineSoundLevel = 100;
           // Force reload audio with new timestamp
           this.timestamp = Date.now();
           
@@ -253,7 +255,6 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
           timer: 1500,
           showConfirmButton: false
         }).then(() => {
-          // Navigate to home and reload the page to refresh the MP3 list
           this.router.navigate(['/home']);
         });
       },

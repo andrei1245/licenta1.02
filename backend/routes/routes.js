@@ -67,13 +67,9 @@ router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) =>
       await new Promise((resolve, reject) => {
         ffmpeg(inputPath)
           .toFormat('mp3')
-          .audioFilters([
-            // Gentle noise gate to remove very low volume noise
-            'silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-60dB',
-            // Light normalization
-            'dynaudnorm=p=0.9:m=100'
-          ])
+          // For trimming initial silence, use the atrim filter; adjust start time if needed.
           .outputOptions([
+            '-af', 'atrim=start=1.1',  // Remove the first 0.1 second
             '-acodec', 'libmp3lame',
             '-ab', '128k',
             '-ar', '44100',
@@ -117,7 +113,6 @@ router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) =>
   }
 });
 
-
 router.delete('/delete-mp3/:id', (req, res) => {
   const fileId = req.params.id;
   console.log('[DEBUG] Deleting file ID:', fileId);
@@ -138,7 +133,7 @@ router.delete('/delete-mp3/:id', (req, res) => {
 });
 
 
-router.get('/mp3/:id', async (req, res) => {
+router.get('/mp3/:id', authMiddleware, async (req, res) => {
   try {
     const mp3 = await MP3.findById(req.params.id);
     if (!mp3) {
@@ -149,34 +144,17 @@ router.get('/mp3/:id', async (req, res) => {
     res.set({
       'Content-Type': 'audio/mpeg',
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
+      'Content-Length': mp3.data.length,
+      'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': 'http://localhost:4200',
+      'Access-Control-Allow-Credentials': 'true'
     });
 
-    // Handle range requests for better streaming
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : mp3.data.length - 1;
-      const chunksize = (end - start) + 1;
-
-      res.status(206);
-      res.set({
-        'Content-Range': `bytes ${start}-${end}/${mp3.data.length}`,
-        'Content-Length': chunksize
-      });
-      
-      const buffer = Buffer.from(mp3.data.buffer, start, chunksize);
-      res.send(buffer);
-    } else {
-      res.set('Content-Length', mp3.data.length);
-      res.send(mp3.data);
-    }
+    // Send the file data directly
+    res.send(mp3.data);
   } catch (error) {
     console.error('Error streaming audio:', error);
-    res.status(500).send({ message: 'Error retrieving file from database' });
+    res.status(500).send({ message: 'Error retrieving file' });
   }
 });
 
@@ -410,16 +388,19 @@ router.post('/logout', async (req, res) => {
   });
 });
 
-// Update the /mp3/:id/cut endpoint
+// In your /mp3/:id/cut endpoint
 router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
   try {
-    const { startTime, endTime } = req.body;
+    const { startTime, endTime, baselineSoundLevel } = req.body;
+    const volInput = (baselineSoundLevel !== undefined && baselineSoundLevel !== null)
+      ? baselineSoundLevel
+      : 100;
+    const volumeFactor = volInput / 100;  // Converts 150% -> 1.5, 300% -> 3, etc.
+    
     const mp3 = await MP3.findById(req.params.id);
-
     if (!mp3) {
       return res.status(404).json({ message: 'File not found' });
     }
-
     if (mp3.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
@@ -429,16 +410,13 @@ router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
     const inputPath = path.join(tempDir, `${mp3._id}_input.mp3`);
     const outputPath = path.join(tempDir, `${mp3._id}_output.mp3`);
     
-    // Ensure temp directory exists
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    // Write buffer to temporary file
     fs.writeFileSync(inputPath, mp3.data);
     console.log('Input file written:', inputPath);
 
-    // Process the audio using FFmpeg with explicit format
     await new Promise((resolve, reject) => {
       ffmpeg(inputPath)
         .setStartTime(startTime)
@@ -447,7 +425,9 @@ router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
           '-acodec libmp3lame',
           '-b:a 128k',
           '-map 0:a',  // Only copy audio stream
-          '-y'  // Overwrite output file if exists
+          '-y',
+          // Convert the percentage baseline into a multiplication factor.
+          '-af', `volume=${volumeFactor}`
         ])
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
@@ -466,28 +446,16 @@ router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
         .save(outputPath);
     });
 
-    // Verify output file exists and has content
-    if (!fs.existsSync(outputPath)) {
-      throw new Error('Output file was not created');
-    }
-
-    const outputStats = fs.statSync(outputPath);
-    if (outputStats.size === 0) {
-      throw new Error('Output file is empty');
-    }
-
-    // Read the processed file
+    // Read the processed file and update the MP3 document… (rest of your code)
     const processedData = fs.readFileSync(outputPath);
     console.log('Original file size:', mp3.data.length);
     console.log('Output file size:', processedData.length);
 
-    // Update the MP3 document with the new data
     const originalSize = mp3.data.length;
     mp3.data = processedData;
     await mp3.save();
     console.log('MP3 document updated in database');
 
-    // Clean up temporary files
     fs.unlinkSync(inputPath);
     fs.unlinkSync(outputPath);
     console.log('Temporary files cleaned up');
@@ -500,7 +468,6 @@ router.post('/mp3/:id/cut', authMiddleware, async (req, res) => {
 
   } catch (error) {
     console.error('Cut error:', error);
-    // Clean up any temporary files if they exist
     const tempDir = path.join(__dirname, '..', 'temp');
     const inputPath = path.join(tempDir, `${req.params.id}_input.mp3`);
     const outputPath = path.join(tempDir, `${req.params.id}_output.mp3`);
