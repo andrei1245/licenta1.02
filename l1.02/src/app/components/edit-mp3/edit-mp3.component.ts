@@ -311,7 +311,7 @@ export class EditMp3Component implements OnInit, AfterViewInit, OnDestroy {
           icon: 'success',
           title: 'Success!',
           text: 'Files concatenated successfully',
-          timer: 1500,
+          timer: 1000,
           showConfirmButton: false
         }).then(() => {
           this.selectedFileId = null;

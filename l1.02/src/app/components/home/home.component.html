@@ -1,9 +1,9 @@
-<h2>{{ message }}</h2>
 
 <form (submit)="uploadFile($event)" class="ptform">
   <input type="file" (change)="onFileSelected($event)" accept=".mp3" />
   <button type="submit" class="fixed-button">Upload MP3</button>
   <button type="button" class="fixed-button" (click)="navigateToRecord()">Record MP3</button>
+  <button type="button" class="fixed-button" (click)="navigateToTTS()">Text-to-Speech</button>
 </form>
 
 <audio *ngIf="uploadedFile" controls [src]="'http://localhost:5000/api/mp3/' + uploadedFile + '?t=' + currentTimestamp">
@@ -17,7 +17,7 @@
         <th>File Name</th>
         <th>Upload Date</th>
         <th>Play</th>
-        <th>Actions</th>
+        <th >Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -31,6 +31,7 @@
           </audio>
         </td>
         <td>
+          <button class="copy-btn fixed-button"  (click)="copyFile(file._id)" length="100">Make a copy</button>
           <button class="edit-btn fixed-button" (click)="editFile(file._id)" length="100">Edit</button>
           <button class="delete-btn fixed-button" (click)="deleteFile(file._id)" length="100">Delete</button>
           <button class="download-btn fixed-button" (click)="downloadFile(file._id)"  length="100" >Download</button>

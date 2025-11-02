@@ -15,7 +15,8 @@ body, html {
   .file-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: auto;
+    table-layout: auto; /* Asigură o lățime fixă pentru coloane */
+   
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -35,21 +36,12 @@ body, html {
     color: white;
     font-size: 1.1em;
     position: sticky;
-    left: 0;
+    left: 100;
+    
   }
   
-  /* Asigură-te că rândurile nu au margin sau padding suplimentar */
-  .file-table tr {
-    background-color: #ffffff;
-    width: 100%;
-  }
-  
-  /* Elimină orice padding de la nivelul componentei */
-  :host {
-    display: block;
-    padding: 0;
-    box-sizing: border-box;
-  }
+
+
   .custom-container {
     width: 100%;
     padding: 0;
@@ -66,15 +58,13 @@ body, html {
     text-align: center;       /* Centrează conținutul */
   }
   
-  /* Stiluri pentru inputul de fișier */
+
   .ptform input[type="file"] {
     display: block;
-    margin: 0 auto 1rem auto; /* Centrează inputul și adaugă spațiu dedesubt */
+    margin: 0 auto 1rem auto; 
   }
   
- 
 
-  
   .fixed-button {
     padding: 10px 20px;
     font-size: 1rem;

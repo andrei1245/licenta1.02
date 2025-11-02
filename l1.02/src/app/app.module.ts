@@ -10,6 +10,7 @@ import { LoginComponent } from './components/login/login.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { ProfileComponent } from './components/profile/profile.component';
+import { TtsComponent } from './components/tts/tts.component';
 
 @NgModule({
   declarations: [
@@ -18,7 +19,8 @@ import { ProfileComponent } from './components/profile/profile.component';
     RegisterComponent,
     NavComponent,
     LoginComponent,
-    ProfileComponent
+    ProfileComponent,
+    TtsComponent
   ],
   imports: [
     BrowserModule,
