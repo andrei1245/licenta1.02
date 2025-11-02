@@ -2,6 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { Emitters } from '../../emitters/emitter';
 import { Router } from '@angular/router';
+import Swal from 'sweetalert2';
+import { time } from 'node:console';
+import { subscribe } from 'node:diagnostics_channel';
 
 interface MP3File {
   _id: string;
@@ -35,7 +38,27 @@ export class HomeComponent implements OnInit {
     this.router.navigate(['/edit-mp3', fileId]); 
   }
 
-  private loadUserData(): void {
+  copyFile(fileId: string): void {
+    this.http.post(`http://localhost:5000/api/mp3/${fileId}/copy`, {}, {
+      withCredentials: true 
+    }).subscribe({
+      next: (res: any) => {
+        Swal.fire({
+          icon: 'success',
+          title: 'File copied successfully',
+          showConfirmButton: false,
+          timer: 1000
+        });
+        this.loadMP3Files(); 
+      },
+      error: (error) => {
+        console.error('Copy failed:', error);
+        alert('Copy failed!');
+      }
+    });
+  }
+
+private loadUserData(): void {
     this.http.get('http://localhost:5000/api/user', { withCredentials: true })
       .subscribe({
         next: (res: any) => { 
@@ -49,6 +72,7 @@ export class HomeComponent implements OnInit {
         }
       });
   }
+
 
   private loadMP3Files(): void {
     this.http.get('http://localhost:5000/api/mp3s', { withCredentials: true })
@@ -120,13 +144,18 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  deleteFile(fileId: string): void {
+deleteFile(fileId: string): void {
     console.log('Deleting file ID:', fileId);
     if (confirm('Are you sure you want to delete this file?')) {
       this.http.delete(`http://localhost:5000/api/delete-mp3/${fileId}`, { withCredentials: true })
         .subscribe({
           next: () => {
-            alert('File deleted successfully');
+            Swal.fire({
+              text: 'File deleted successfully',
+              showConfirmButton: false,
+              timer: 1000,
+              icon: 'success'            
+            });
             this.loadMP3Files(); 
           },
           error: (err) => {
@@ -142,8 +171,8 @@ export class HomeComponent implements OnInit {
         });
     }
   }
-
-
+  
+ 
   onFileSelected(event: any): void {
     const file: File = event.target.files[0];
     if (file && file.type === 'audio/mpeg') {
@@ -213,5 +242,9 @@ export class HomeComponent implements OnInit {
 
   navigateToRecord(): void {
     this.router.navigate(['/record']);
+  }
+
+  navigateToTTS(): void {
+    this.router.navigate(['/tts']);
   }
 }

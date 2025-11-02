@@ -6,6 +6,7 @@ import { RegisterComponent } from './components/register/register.component';
 import { EditMp3Component } from './components/edit-mp3/edit-mp3.component';
 import { ProfileComponent } from './components/profile/profile.component';
 import { RecordComponent } from './components/record/record.component';
+import { TtsComponent } from './components/tts/tts.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -16,7 +17,8 @@ const routes: Routes = [
     .then(m => m.EditMp3Component)},
   { path: 'home',  component: HomeComponent },
   {path: 'profile',component: ProfileComponent},
-  {path: 'record',component: RecordComponent}
+  {path: 'record',component: RecordComponent},
+  {path: 'tts',component: TtsComponent}
 ];
 
 @NgModule({

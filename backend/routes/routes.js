@@ -113,6 +113,35 @@ router.post('/upload', authMiddleware, upload.single('mp3'), async (req, res) =>
   }
 });
 
+
+router.post('/mp3/:id/copy', authMiddleware, async (req, res) => {
+  try {
+    const mp3 = await MP3.findById(req.params.id);
+    if (!mp3) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+    if (mp3.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const newMp3 = new MP3({
+      filename: mp3.filename + "(copy).mp3",
+      data: mp3.data,
+      contentType: mp3.contentType,
+      user: req.user._id
+    });
+
+    await newMp3.save();
+    res.status(200).json({ 
+      message: 'File copied successfully', 
+      fileId: newMp3._id 
+    });
+  } catch (error) {
+    console.error('Copy error:', error);
+    res.status(500).json({ message: 'Error copying file' });
+  }
+});
+
 router.delete('/delete-mp3/:id', (req, res) => {
   const fileId = req.params.id;
   console.log('[DEBUG] Deleting file ID:', fileId);
@@ -559,6 +588,7 @@ router.post('/mp3/:id/concat', authMiddleware, async (req, res) => {
     const concatenatedData = fs.readFileSync(outputPath);
 
     // Update first file with concatenated data
+    firstMp3.filename = firstMp3.filename.replace('.mp3', '') + '+'+secondMp3.filename.replace('.mp3', '') + '.mp3';
     firstMp3.data = concatenatedData;
     await firstMp3.save();
 
