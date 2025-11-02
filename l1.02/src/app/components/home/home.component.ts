@@ -247,4 +247,8 @@ deleteFile(fileId: string): void {
   navigateToTTS(): void {
     this.router.navigate(['/tts']);
   }
+
+  navigateToSTT(): void {
+    this.router.navigate(['/stt']);
+  }
 }

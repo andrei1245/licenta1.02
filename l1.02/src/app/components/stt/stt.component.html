@@ -1,0 +1,88 @@
+<div class="stt-container">
+  <div class="stt-header">
+    <h1>Speech-to-Text (Recunoaștere Vocală)</h1>
+    <button class="back-button" (click)="goBack()">← Înapoi la Home</button>
+  </div>
+
+  <div class="stt-content">
+    <div class="controls-section">
+      <div class="control-group">
+        <label for="languageSelect">Limbă:</label>
+        <select 
+          id="languageSelect" 
+          [(ngModel)]="selectedLanguage"
+          (change)="onLanguageChange($event)"
+          class="language-select"
+        >
+          <option *ngFor="let lang of languages" [value]="lang.code">
+            {{ lang.name }}
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <div class="button-section">
+      <button 
+        class="stt-button start-button" 
+        (click)="startListening()"
+        [disabled]="isListening"
+      >
+        🎤 Începe Ascultarea
+      </button>
+      
+      <button 
+        class="stt-button stop-button" 
+        (click)="stopListening()"
+        [disabled]="!isListening"
+      >
+        ⏹ Oprește Ascultarea
+      </button>
+      
+      <button 
+        class="stt-button clear-button" 
+        (click)="clearTranscript()"
+        [disabled]="!transcriptText"
+      >
+        🗑 Șterge Text
+      </button>
+      
+      <button 
+        class="stt-button copy-button" 
+        (click)="copyToClipboard()"
+        [disabled]="!transcriptText"
+      >
+        📋 Copiază Text
+      </button>
+    </div>
+
+    <div class="status-section" *ngIf="isListening">
+      <div class="listening-indicator">
+        <span class="pulse"></span>
+        Se ascultă...
+      </div>
+    </div>
+
+    <div class="transcript-section">
+      <label>Text Transcris:</label>
+      <div class="transcript-box">
+        <p class="final-text">{{ transcriptText }}</p>
+        <p class="interim-text" *ngIf="interimText">{{ interimText }}</p>
+        <p class="placeholder" *ngIf="!transcriptText && !interimText">
+          Apăsați "Începe Ascultarea" și vorbiți în microfon...
+        </p>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <h3>ℹ️ Instrucțiuni:</h3>
+      <ul>
+        <li>Selectați limba dorită (Română sau Engleză)</li>
+        <li>Apăsați "Începe Ascultarea" și permiteți accesul la microfon</li>
+        <li>Vorbiți clar în microfon</li>
+        <li>Textul va apărea automat în zona de mai sus</li>
+        <li>Apăsați "Oprește Ascultarea" când ați terminat</li>
+        <li>Puteți copia textul sau îl puteți șterge</li>
+      </ul>
+    </div>
+  </div>
+</div>

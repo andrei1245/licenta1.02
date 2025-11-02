@@ -4,6 +4,7 @@
   <button type="submit" class="fixed-button">Upload MP3</button>
   <button type="button" class="fixed-button" (click)="navigateToRecord()">Record MP3</button>
   <button type="button" class="fixed-button" (click)="navigateToTTS()">Text-to-Speech</button>
+  <button type="button" class="fixed-button" (click)="navigateToSTT()">Speech-to-Text</button>
 </form>
 
 <audio *ngIf="uploadedFile" controls [src]="'http://localhost:5000/api/mp3/' + uploadedFile + '?t=' + currentTimestamp">

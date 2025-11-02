@@ -83,7 +83,7 @@
       <button 
         class="tts-button pause-button" 
         (click)="pauseSpeaking()"
-        [disabled]="!isSpeaking"
+        [disabled]="!isSpeaking || isPaused"
       >
         ⏸ Pauză
       </button>
@@ -91,6 +91,7 @@
       <button 
         class="tts-button resume-button" 
         (click)="resumeSpeaking()"
+        [disabled]="!isSpeaking || !isPaused"
       >
         ▶ Continuă
       </button>
@@ -100,7 +101,7 @@
         (click)="stopSpeaking()"
         [disabled]="!isSpeaking"
       >
-        ⏹ Stop
+        ⏹ Restart
       </button>
     </div>
 
