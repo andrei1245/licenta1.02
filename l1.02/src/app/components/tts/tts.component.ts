@@ -16,6 +16,7 @@ export class TtsComponent implements OnInit {
   pitch: number = 1;
   volume: number = 1;
   isSpeaking: boolean = false;
+  isPaused: boolean = false;
 
   constructor(private router: Router) {}
 
@@ -68,6 +69,10 @@ export class TtsComponent implements OnInit {
     // Cancel any ongoing speech
     speechSynthesis.cancel();
 
+    // Set immediately to enable buttons
+    this.isSpeaking = true;
+    this.isPaused = false;
+
     const utterance = new SpeechSynthesisUtterance(this.textToSpeak);
     
     if (this.selectedVoice) {
@@ -82,17 +87,18 @@ export class TtsComponent implements OnInit {
     utterance.volume = this.volume;
 
     utterance.onstart = () => {
-      this.isSpeaking = true;
       console.log('Speech started');
     };
 
     utterance.onend = () => {
       this.isSpeaking = false;
+      this.isPaused = false;
       console.log('Speech ended');
     };
 
     utterance.onerror = (event) => {
       this.isSpeaking = false;
+      this.isPaused = false;
       console.error('Speech error:', event);
       Swal.fire({
         icon: 'error',
@@ -109,18 +115,17 @@ export class TtsComponent implements OnInit {
   stopSpeaking(): void {
     speechSynthesis.cancel();
     this.isSpeaking = false;
+    this.isPaused = false;
   }
 
   pauseSpeaking(): void {
-    if (speechSynthesis.speaking && !speechSynthesis.paused) {
-      speechSynthesis.pause();
-    }
+    speechSynthesis.pause();
+    this.isPaused = true;
   }
 
   resumeSpeaking(): void {
-    if (speechSynthesis.paused) {
-      speechSynthesis.resume();
-    }
+    speechSynthesis.resume();
+    this.isPaused = false;
   }
 
   goBack(): void {

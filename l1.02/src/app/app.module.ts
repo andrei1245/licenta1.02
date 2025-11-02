@@ -11,6 +11,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { ProfileComponent } from './components/profile/profile.component';
 import { TtsComponent } from './components/tts/tts.component';
+import { SttComponent } from './components/stt/stt.component';
 
 @NgModule({
   declarations: [
@@ -20,7 +21,8 @@ import { TtsComponent } from './components/tts/tts.component';
     NavComponent,
     LoginComponent,
     ProfileComponent,
-    TtsComponent
+    TtsComponent,
+    SttComponent
   ],
   imports: [
     BrowserModule,
