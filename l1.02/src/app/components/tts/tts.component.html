@@ -77,7 +77,7 @@
         (click)="speak()"
         [disabled]="isSpeaking"
       >
-        🔊 Citește
+         Citește
       </button>
       
       <button 
@@ -85,7 +85,7 @@
         (click)="pauseSpeaking()"
         [disabled]="!isSpeaking || isPaused"
       >
-        ⏸ Pauză
+         Pauză
       </button>
       
       <button 
@@ -93,7 +93,7 @@
         (click)="resumeSpeaking()"
         [disabled]="!isSpeaking || !isPaused"
       >
-        ▶ Continuă
+         Continuă
       </button>
       
       <button 
@@ -101,7 +101,23 @@
         (click)="stopSpeaking()"
         [disabled]="!isSpeaking"
       >
-        ⏹ Restart
+         Restart
+      </button>
+
+      <button 
+        class="tts-button download-button" 
+        (click)="downloadAudio()"
+        [disabled]="isRecording"
+      >
+         Descarcă Audio
+      </button>
+
+      <button 
+        class="tts-button save-button" 
+        (click)="saveToDatabase()"
+        [disabled]="isRecording"
+      >
+         Salvează în Tabel
       </button>
     </div>
 

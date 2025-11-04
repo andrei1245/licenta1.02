@@ -195,6 +195,28 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.download-button {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.download-button:hover:not(:disabled) {
+  background-color: #5a32a3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.save-button {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.save-button:hover:not(:disabled) {
+  background-color: #138496;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .status-section {
   text-align: center;
   padding: 1rem;
