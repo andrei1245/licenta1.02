@@ -10,6 +10,9 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const fs = require('fs');
 const path = require('path');
+const say = require('say');
+const gtts = require('google-tts-api');
+const https = require('https');
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 require("dotenv").config();
@@ -611,6 +614,267 @@ router.post('/mp3/:id/concat', authMiddleware, async (req, res) => {
     });
     res.status(500).json({ 
       message: 'Error concatenating files',
+      error: error.message 
+    });
+  }
+});
+
+// Generate MP3 from text using TTS (Google TTS for Romanian, Windows TTS for English)
+router.post('/convert-tts-to-mp3', async (req, res) => {
+  try {
+    const { text, fileName, rate, language } = req.body;
+
+    console.log('=== TTS Request ===');
+    console.log('Text:', text);
+    console.log('File name:', fileName);
+    console.log('Rate:', rate);
+    console.log('Language received:', language);
+
+    if (!text) {
+      return res.status(400).json({ message: 'No text provided' });
+    }
+
+    const finalFileName = fileName || 'tts-audio';
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const audioPath = path.join(tempDir, `${finalFileName}-${Date.now()}.mp3`);
+    const mp3Path = path.join(tempDir, `${finalFileName}.mp3`);
+
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Check if language is Romanian - use Google TTS, otherwise use Windows TTS
+    if (language === 'ro-RO') {
+      console.log('Using Google TTS for Romanian');
+      
+      // Get Google TTS URL
+      const url = gtts.getAudioUrl(text, {
+        lang: 'ro',
+        slow: false,
+        host: 'https://translate.google.com',
+      });
+
+      console.log('Google TTS URL:', url);
+
+      // Download audio from Google TTS
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(audioPath);
+        https.get(url, (response) => {
+          response.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            console.log('Google TTS audio downloaded');
+            resolve();
+          });
+        }).on('error', (err) => {
+          fs.unlink(audioPath, () => {});
+          console.error('Download error:', err);
+          reject(err);
+        });
+      });
+
+      // Rename to final MP3 path
+      fs.renameSync(audioPath, mp3Path);
+
+    } else {
+      // Use Windows TTS for English
+      console.log('Using Windows TTS for English');
+      
+      const wavPath = path.join(tempDir, `${finalFileName}-${Date.now()}.wav`);
+      
+      const voiceMap = {
+        'en-US': 'Microsoft David Desktop',
+        'en-GB': 'Microsoft Zira Desktop',
+      };
+
+      const selectedVoice = language ? voiceMap[language] : 'Microsoft David Desktop';
+      console.log('Mapped voice:', selectedVoice);
+
+      // Generate WAV file using Windows TTS
+      await new Promise((resolve, reject) => {
+        const speed = rate || 1.0;
+        
+        say.export(text, selectedVoice, speed, wavPath, (err) => {
+          if (err) {
+            console.error('TTS error with voice:', selectedVoice, err);
+            // Fallback to default voice if selected voice fails
+            say.export(text, null, speed, wavPath, (err2) => {
+              if (err2) {
+                console.error('TTS error with default voice:', err2);
+                reject(err2);
+              } else {
+                console.log('TTS WAV generated with default voice');
+                resolve();
+              }
+            });
+          } else {
+            console.log('TTS WAV generated with voice:', selectedVoice);
+            resolve();
+          }
+        });
+      });
+
+      // Convert WAV to MP3 using FFmpeg
+      await new Promise((resolve, reject) => {
+        ffmpeg(wavPath)
+          .toFormat('mp3')
+          .audioBitrate('128k')
+          .audioFrequency(44100)
+          .on('end', () => {
+            console.log('WAV to MP3 conversion completed');
+            // Delete WAV file
+            if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+            resolve();
+          })
+          .on('error', (err) => {
+            console.error('FFmpeg error:', err);
+            reject(err);
+          })
+          .save(mp3Path);
+      });
+    }
+
+    // Send MP3 file
+    res.download(mp3Path, `${finalFileName}.mp3`, (err) => {
+      // Cleanup temp files after download
+      if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
+      
+      if (err) {
+        console.error('Download error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error sending file' });
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('TTS generation error:', error);
+    res.status(500).json({ 
+      message: 'Error generating TTS audio',
+      error: error.message 
+    });
+  }
+});
+
+// Save TTS-generated MP3 to database
+router.post('/save-tts-to-db', authMiddleware, async (req, res) => {
+  try {
+    const { text, fileName, language } = req.body;
+
+    console.log('=== Save TTS to DB Request ===');
+    console.log('Text:', text);
+    console.log('File name:', fileName);
+    console.log('Language:', language);
+    console.log('User ID:', req.userId);
+
+    if (!text) {
+      return res.status(400).json({ message: 'No text provided' });
+    }
+
+    const finalFileName = fileName || 'tts-audio';
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const audioPath = path.join(tempDir, `${finalFileName}-${Date.now()}.mp3`);
+
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Generate MP3 using Google TTS for Romanian
+    if (language === 'ro-RO') {
+      console.log('Using Google TTS for Romanian');
+      
+      const url = gtts.getAudioUrl(text, {
+        lang: 'ro',
+        slow: false,
+        host: 'https://translate.google.com',
+      });
+
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(audioPath);
+        https.get(url, (response) => {
+          response.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            console.log('Google TTS audio downloaded');
+            resolve();
+          });
+        }).on('error', (err) => {
+          fs.unlink(audioPath, () => {});
+          reject(err);
+        });
+      });
+
+    } else {
+      // Use Windows TTS for English
+      console.log('Using Windows TTS for English');
+      
+      const wavPath = path.join(tempDir, `${finalFileName}-${Date.now()}.wav`);
+      
+      const voiceMap = {
+        'en-US': 'Microsoft David Desktop',
+        'en-GB': 'Microsoft Zira Desktop',
+      };
+
+      const selectedVoice = voiceMap[language] || 'Microsoft David Desktop';
+
+      await new Promise((resolve, reject) => {
+        say.export(text, selectedVoice, 1.0, wavPath, (err) => {
+          if (err) {
+            say.export(text, null, 1.0, wavPath, (err2) => {
+              if (err2) reject(err2);
+              else resolve();
+            });
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // Convert WAV to MP3
+      await new Promise((resolve, reject) => {
+        ffmpeg(wavPath)
+          .toFormat('mp3')
+          .audioBitrate('128k')
+          .audioFrequency(44100)
+          .on('end', () => {
+            if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+            resolve();
+          })
+          .on('error', (err) => reject(err))
+          .save(audioPath);
+      });
+    }
+
+    // Read MP3 file as buffer
+    const audioBuffer = fs.readFileSync(audioPath);
+
+    // Save to MongoDB with correct schema fields
+    const newMP3 = new MP3({
+      filename: `${finalFileName}.mp3`,
+      data: audioBuffer,  // Buffer, not Base64
+      contentType: 'audio/mpeg',
+      user: req.user._id,  // Use req.user._id like in upload function
+      uploadDate: new Date()
+    });
+
+    await newMP3.save();
+
+    // Cleanup temp file
+    if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
+
+    console.log('TTS MP3 saved to database successfully');
+
+    res.status(201).json({ 
+      message: 'MP3 salvat cu succes în baza de date!',
+      mp3Id: newMP3._id
+    });
+
+  } catch (error) {
+    console.error('Error saving TTS to DB:', error);
+    res.status(500).json({ 
+      message: 'Eroare la salvarea MP3-ului',
       error: error.message 
     });
   }
