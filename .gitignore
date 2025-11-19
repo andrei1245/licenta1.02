@@ -1,0 +1,3 @@
+﻿# Large model files - download separately
+voice-cloning-service/models/*.pth
+voice-cloning-service/models/*.index
