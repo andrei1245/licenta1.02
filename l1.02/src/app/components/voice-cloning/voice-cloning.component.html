@@ -1,0 +1,80 @@
+<div class="voice-cloning-container">
+  <h2>🎤 Celebrity Voice Cloning</h2>
+  <p class="subtitle">Record your voice and transform it to sound like a celebrity!</p>
+
+  <!-- Celebrity Voice Selection -->
+  <div class="voice-selection">
+    <label for="celebrity-voice">Select Celebrity Voice:</label>
+    <select 
+      id="celebrity-voice" 
+      [(ngModel)]="selectedVoice" 
+      class="voice-select"
+      [disabled]="isRecording || isProcessing">
+      <option *ngFor="let voice of celebrityVoices" [value]="voice.id">
+        {{ voice.name }} - {{ voice.description }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Recording Controls -->
+  <div class="recording-controls">
+    <button 
+      *ngIf="!isRecording" 
+      (click)="startRecording()" 
+      class="btn btn-record"
+      [disabled]="isProcessing">
+      🎙️ Start Recording
+    </button>
+    
+    <button 
+      *ngIf="isRecording" 
+      (click)="stopRecording()" 
+      class="btn btn-stop">
+      ⏹️ Stop Recording
+    </button>
+
+    <div *ngIf="isRecording" class="recording-indicator">
+      <span class="pulse"></span>
+      Recording in progress...
+    </div>
+  </div>
+
+  <!-- Original Recording -->
+  <div *ngIf="recordedAudioUrl" class="audio-section">
+    <h3>Your Original Recording:</h3>
+    <audio controls [src]="recordedAudioUrl" class="audio-player"></audio>
+    
+    <button 
+      (click)="cloneVoice()" 
+      class="btn btn-clone"
+      [disabled]="isProcessing || isRecording">
+      <span *ngIf="!isProcessing">🎭 Clone Voice</span>
+      <span *ngIf="isProcessing">⏳ Processing...</span>
+    </button>
+  </div>
+
+  <!-- Cloned Audio -->
+  <div *ngIf="clonedAudioUrl" class="audio-section cloned-section">
+    <h3>🌟 Cloned Celebrity Voice:</h3>
+    <audio controls [src]="clonedAudioUrl" class="audio-player"></audio>
+    
+    <div class="action-buttons">
+      <button (click)="downloadCloned()" class="btn btn-download">
+        💾 Download
+      </button>
+      <button (click)="saveToDatabase()" class="btn btn-save">
+        📁 Save to Library
+      </button>
+    </div>
+  </div>
+
+  <!-- Clear Button -->
+  <div *ngIf="recordedAudioUrl" class="clear-section">
+    <button 
+      (click)="clearRecording()" 
+      class="btn btn-clear"
+      [disabled]="isRecording || isProcessing">
+      🗑️ Clear All
+    </button>
+  </div>
+</div>

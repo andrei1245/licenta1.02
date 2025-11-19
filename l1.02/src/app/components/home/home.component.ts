@@ -251,4 +251,8 @@ deleteFile(fileId: string): void {
   navigateToSTT(): void {
     this.router.navigate(['/stt']);
   }
+
+  navigateToVoiceCloning(): void {
+    this.router.navigate(['/voice-cloning']);
+  }
 }

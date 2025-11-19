@@ -880,4 +880,93 @@ router.post('/save-tts-to-db', authMiddleware, async (req, res) => {
   }
 });
 
+// Voice cloning endpoint - converts user's voice to celebrity voice
+router.post('/clone-voice', authMiddleware, upload.single('audioFile'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No audio file provided' });
+    }
+
+    const { targetVoice } = req.body;
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const inputPath = path.join(tempDir, `input-${Date.now()}.webm`);
+    const convertedPath = path.join(tempDir, `converted-${Date.now()}.wav`);
+    const outputPath = path.join(tempDir, `cloned-${Date.now()}.mp3`);
+
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Save input file
+    fs.writeFileSync(inputPath, req.file.buffer);
+
+    // Convert to WAV for processing
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .toFormat('wav')
+        .audioChannels(1)
+        .audioFrequency(16000)
+        .on('end', resolve)
+        .on('error', reject)
+        .save(convertedPath);
+    });
+
+    console.log('Processing voice cloning for:', targetVoice);
+
+    // Call Python voice cloning service
+    const pythonServiceUrl = 'http://localhost:5001/clone';
+    
+    const formData = require('form-data');
+    const axios = require('axios');
+    const form = new formData();
+    form.append('audio', fs.createReadStream(convertedPath));
+    form.append('target_voice', targetVoice);
+
+    try {
+      const response = await axios.post(pythonServiceUrl, form, {
+        headers: form.getHeaders(),
+        responseType: 'arraybuffer',
+        timeout: 300000 // 5 minute timeout for processing
+      });
+
+      // Save the cloned audio
+      fs.writeFileSync(outputPath, response.data);
+
+      // Send back to client
+      res.download(outputPath, `cloned-${targetVoice}.mp3`, (err) => {
+        // Cleanup
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+        if (fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        
+        if (err) {
+          console.error('Download error:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ message: 'Error sending file' });
+          }
+        }
+      });
+
+    } catch (pythonError) {
+      console.error('Python service error:', pythonError.message);
+      
+      // Cleanup on error
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
+      
+      res.status(503).json({ 
+        message: 'Voice cloning service unavailable. Please ensure Python service is running on port 5001.',
+        error: pythonError.message 
+      });
+    }
+
+  } catch (error) {
+    console.error('Voice cloning error:', error);
+    res.status(500).json({ 
+      message: 'Error processing voice cloning',
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

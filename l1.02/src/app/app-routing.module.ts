@@ -8,6 +8,7 @@ import { ProfileComponent } from './components/profile/profile.component';
 import { RecordComponent } from './components/record/record.component';
 import { TtsComponent } from './components/tts/tts.component';
 import { SttComponent } from './components/stt/stt.component';
+import { VoiceCloningComponent } from './components/voice-cloning/voice-cloning.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -20,7 +21,8 @@ const routes: Routes = [
   {path: 'profile',component: ProfileComponent},
   {path: 'record',component: RecordComponent},
   {path: 'tts',component: TtsComponent},
-  {path: 'stt',component: SttComponent}
+  {path: 'stt',component: SttComponent},
+  {path: 'voice-cloning',component: VoiceCloningComponent}
 ];
 
 @NgModule({

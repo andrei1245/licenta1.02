@@ -12,6 +12,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { ProfileComponent } from './components/profile/profile.component';
 import { TtsComponent } from './components/tts/tts.component';
 import { SttComponent } from './components/stt/stt.component';
+import { VoiceCloningComponent } from './components/voice-cloning/voice-cloning.component';
 
 @NgModule({
   declarations: [
@@ -22,7 +23,8 @@ import { SttComponent } from './components/stt/stt.component';
     LoginComponent,
     ProfileComponent,
     TtsComponent,
-    SttComponent
+    SttComponent,
+    VoiceCloningComponent
   ],
   imports: [
     BrowserModule,
